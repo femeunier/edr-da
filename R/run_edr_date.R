@@ -11,10 +11,8 @@ run_edr_date <- function(date, ed2in, trait_values,
                          output_dir = tempdir(),
                          pb = NULL,
                          img_path = NULL,
-                         edr_exe_path = file.path("/projectnb/dietzelab/ashiklom",
-                                                  "ED2/EDR/build",
-                                                  "ed_2.1-opt")
-                                                  ) {
+                         edr_exe_path = file.path("/home/carya/ED2/EDR/build",
+                                                  "ed_2.1-opt-master-84286fa0") ) {
   on.exit(if (!is.null(pb)) pb$tick())
   if (!lubridate::is.Date(date)) date <- lubridate::as_date(date)
   dtime <- ISOdatetime(
