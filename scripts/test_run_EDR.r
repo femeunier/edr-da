@@ -56,6 +56,14 @@ spectra_list <- list(Early_Hannes = PEcAnRTM::prospect(c(1.4, 40, 0.01, 0.010), 
                      Late_Hannes  = PEcAnRTM::prospect(c(1.4, 40, 0.01, 0.010), version = "4"),
                      Liana_BCI    = PEcAnRTM::prospect(c(1.4, 40, 0.01, 0.010), version = "4"))
 
+par(mfrow=c(1,2))
+plot(400:2500,spectra_list[[4]][,1],type='l',col='darkblue',ylim = c(0,0.75))
+lines(400:2500,spectra_list[[3]][,1],col='darkgreen')
+
+plot(400:2500,spectra_list[[4]][,2],type='l',col='darkblue',ylim = c(0,0.75))
+lines(400:2500,spectra_list[[3]][,2],col='darkgreen')
+
+
 OP_noL <- PEcAnRTM::EDR(img_path = NULL,
                         ed2in_path = edr_ed2in,
                         spectra_list = spectra_list,
@@ -63,23 +71,11 @@ OP_noL <- PEcAnRTM::EDR(img_path = NULL,
                         edr_exe_path =  edr_exe_path,
                         patches = TRUE)
 
+#################################################################################################
+# Analyze outputs
+
 Npatches <- as.numeric(readLines(con = file.path(output_dir,
                                                  "patches/Npatches.dat")))
-
-LAI_sim <- rep(0.,Npatches)
-CA_sim  <- rep(0.,Npatches)
-for (i in sequence(Npatches)){
-  line <- readLines(con = file.path(output_dir,paste("patches/LAI",i,'.dat',sep='')))
-  temp=as.numeric(strsplit(line,'\\s+')[[1]][-1])
-  
-  line <- readLines(con = file.path(output_dir,paste("patches/CA",i,'.dat',sep='')))
-  temp_CA=as.numeric(strsplit(line,'\\s+')[[1]][-1])
-  
-  LAI_sim[i] <- sum(temp)
-  CA_sim[i] <- mean(temp_CA)
-}
-
-
 file<-file.path(output_dir,paste('history','S',toString(lubridate::year(start.date)),
                                  sprintf("%02d", lubridate::month(start.date)),
                                  sprintf("%02d", lubridate::day(start.date)),
@@ -98,7 +94,6 @@ NPATCHES_GLOBAL_noL=readDataSet(hfile[['NPATCHES_GLOBAL']])
 nplant=readDataSet(hfile[['NPLANT']])
 Bleaf=readDataSet(hfile[['BLEAF']])
 SLA=readDataSet(hfile[['SLA']])
-WAI=readDataSet(hfile[['WAI_CO']])
 CA=readDataSet(hfile[['CROWN_AREA_CO']])
 
 hfile$close_all()
@@ -111,26 +106,41 @@ CA_adult[DBH>10] <- 0.
 CA_m=tapply(X=CA_adult*LAI,INDEX=ipaconow,FUN=sum)
 
 LAI_temp <- LAI
-LAI_total_noL = tapply( X = LAI_temp, INDEX = ipaconow, FUN   = sum)#end tapply
-order=sort(LAI_sim, index.return=TRUE)$ix
+LAI_tot <- tapply( X = LAI_temp, INDEX = ipaconow, FUN   = sum)#end tapply
+filter <- rep(0,length(LAI))
+filter[PFT == 17] <- 1
+LAI_liana <- tapply( X = LAI_temp*filter, INDEX = ipaconow, FUN   = sum)#end tapply
+order <- sort(LAI_tot, index.return=TRUE)$ix
 
 rbPal <- colorRampPalette(c('grey','black'))
 C <- rbPal(NPATCHES_GLOBAL_noL)
 Colors_noL <- C
 Colors_noL[order] <- C
 
+pos_red <- 290
+pos_nir <- 400
+
+Red <- OP_noL[,pos_red]
+NIR <- OP_noL[,pos_nir]
+NDVI <- (NIR-Red)/(NIR+Red)
+
 plot.new()
 par(mfrow=c(1,1))
-matplot(c(401:2500,2501),t(OP_noL),col=Colors_noL,type='l',xlim=c(400,2500),ylim=c(0,0.6),lty=1)
+matplot(400:2500,t(OP_noL),col=Colors_noL,type='l',xlim=c(400,2500),ylim=c(0,0.75),lty=1)
+abline(v=pos_red+400,col='red')
+abline(v=pos_nir+400,col='red',lty=2)
 
-Red=OP_noL[,300]
-NIR=OP_noL[,500]
-NDVI=(NIR-Red)/(NIR+Red)
 plot.new()
 par(mfrow=c(1,2))
-plot(LAI_total_noL,Red,xlab='LAI')
-plot(LAI_total_noL,NIR,xlab='LAI')
+plot(LAI_tot,Red,xlab='LAI')
+plot(LAI_tot,NIR,xlab='LAI')
 
 par(mfrow = c(1,1))
-NDVI <- sort(NDVI,index.return = TRUE)
-plot(NDVI$x,LAI_total_noL[NDVI$ix],type='p')
+NDVI_sort <- sort(NDVI,index.return = TRUE)
+plot(NDVI_sort$x,LAI_tot[NDVI_sort$ix],type='p')
+
+LAI_liana_min <- which.min(LAI_liana)
+OP_noL_minL <- t(array(rep(OP_noL[LAI_liana_min,],Npatches),c(2101,10)))
+matplot(400:2500,t(OP_noL-OP_noL_minL),col=Colors_noL,type='l',xlim=c(400,2500),ylim=c(-0.25,0.25),lty=1)
+abline(v=pos_red+400,col='red')
+abline(v=pos_nir+400,col='red',lty=2)
