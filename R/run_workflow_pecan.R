@@ -1,4 +1,4 @@
-#' RUn PEcAN workflow
+#' Run PEcAn Workflow
 #'
 #' @export
 run_workflow_pecan <- function(pecanxmlfile){
