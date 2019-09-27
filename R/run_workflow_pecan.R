@@ -1,7 +1,7 @@
 #' Run PEcAn Workflow
 #'
 #' @export
-run_workflow_pecan <- function(pecanxmlfile){
+run_workflow_pecan <- function(pecanxmlfile,run_all = TRUE){
   
   source('~/R/scripts/add.constants.to.config.r')
   
@@ -105,11 +105,34 @@ run_workflow_pecan <- function(pecanxmlfile){
     q();
   }
   
+  if (!run_all){
+    run_file <- file.path(settings$rundir, "runs.txt")
+    run2_file <- file.path(settings$rundir, "runs_all.txt")
+    dummy <- file.copy(run_file,run2_file)
+    
+    run_list <- readLines(con = run_file)
+    singlerun_list <- run_list[1]
+    writeLines(text = singlerun_list,con = run_file)
+  }
+  
   # Start ecosystem model runs
   if (PEcAn.utils::status.check("MODEL") == 0) {
     PEcAn.utils::status.start("MODEL")
     PEcAn.remote::runModule.start.model.runs(settings,stop.on.error=FALSE)
     PEcAn.utils::status.end()
+  }
+  
+  if (!run_all){
+    from_dir <- file.path(settings$modeloutdir,singlerun_list)
+    for (irun in seq(2,length(run_list))){
+      to_dir <- file.path(settings$modeloutdir,run_list[irun])
+      args <- paste(file.path(from_dir,'*'),to_dir,sep=' ')
+      system2('cp',args)
+    }
+    system2('rm',run_file)
+    dummy <- file.copy(run2_file,run_file)
+    system2('rm',run2_file)
+    
   }
   
   

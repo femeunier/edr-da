@@ -6,8 +6,8 @@
 \usage{
 run_edr_date(date, ed2in, trait_values, output_dir = tempdir(),
   pb = NULL, img_path = NULL,
-  edr_exe_path = file.path("/projectnb/dietzelab/ashiklom",
-  "ED2/EDR/build", "ed_2.1-opt"))
+  edr_exe_path = file.path("/home/carya/ED2/EDR/build",
+  "ed_2.1-opt-master-84286fa0"))
 }
 \arguments{
 \item{date}{Date at which to run EDR}

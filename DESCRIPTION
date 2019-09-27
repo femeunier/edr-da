@@ -18,7 +18,10 @@ Imports:
     readr,
     rlang,
     stringr,
-    tibble
+    tibble,
+    PEcAn.all,
+    PEcAn.utils,
+    rlist
 Suggests:
     PEcAn.ED2,
     testthat
