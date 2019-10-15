@@ -1,4 +1,7 @@
-## library(redr)
+library(redr)
+library(PEcAn.all)
+library(BayesianTools)
+
 devtools::load_all(".")
 
 load_local <- function(file) {
@@ -126,14 +129,23 @@ prior <- BayesianTools::createUniformPrior(lower = lowers, upper = uppers)
 likelihood <- create_likelihood(observation, aviris_use_wl, pft, dbh, nplant)
 
 ## debug(edr_r)
-## likelihood(prior$sampler())
+# likelihood(prior$sampler())
 
 # Run inversion
-setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = TRUE)
+setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = FALSE)
 samples <- BayesianTools::runMCMC(setup)
 samples <- BayesianTools::runMCMC(samples)
 BayesianTools::gelmanDiagnostics(samples)
 summary(samples)
+
+
+par(mar=c(5,4,4,2))
+par(mar=c(0,0,0,0))
+samples_small <- getSample(samples,parametersOnly=FALSE,whichParameters = 1:3,coda = TRUE,includesProbabilities=TRUE)
+correlationPlot(samples_small)
+
+plot(samples_small)
+marginalPlot(samples_small, prior = samples$setup$prior)
 
 ## Local Variables:
 ## ess-r-package--project-cache: (redr . "/Users/shik544/Box Sync/Projects/edr_pda/edr-da/")

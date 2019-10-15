@@ -39,3 +39,21 @@ size2bl <- function(dbh, b1, b2) {
 wai_allometry <- function(dbh, nplant, b1, b2) {
   nplant * b1 * dbh ^ b2 
 }
+
+#' crown area allometry
+#'
+#' @export
+#' 
+dbh2ca <- function(dbh, b1, b2) {
+  b1 * dbh ^ b2
+}
+#' cai allometry
+#'
+#' @export
+cai_allometry <- function(dbh,nplant,b1Bl,b2Bl,sla,b1Ca,b2Ca) {
+  Ca <- dbh2ca(dbh, b1Ca, b2Ca)
+  Bl <- size2bl(dbh, b1Bl, b2Bl)
+  loclai <- sla *Bl
+  dbh2ca <- pmin(loclai, Ca)
+  pmin(1.0, nplant * dbh2ca)
+}

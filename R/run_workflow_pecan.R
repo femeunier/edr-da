@@ -21,14 +21,14 @@ run_workflow_pecan <- function(pecanxmlfile,run_all = TRUE){
   # PEcAn Workflow
   # ----------------------------------------------------------------------
   # Open and read in settings file for PEcAn run.
-  args <- commandArgs(trailingOnly = TRUE)
-  if (is.na(args[1])){
-    settings <- PEcAn.settings::read.settings(pecanxmlfile)
-  } else {
-    settings.file = args[1]
-    settings <- PEcAn.settings::read.settings(settings.file)
-  }
-  
+  # args <- commandArgs(trailingOnly = TRUE)
+  # if (is.na(args[1])){
+  #   settings <- PEcAn.settings::read.settings(pecanxmlfile)
+  # } else {
+  #   settings.file = args[1]
+  #   settings <- PEcAn.settings::read.settings(settings.file)
+  # }
+   
   # If remote, open tunnel
   if (!is.localhost(settings$host)){
     # Close it first just in case
@@ -127,7 +127,7 @@ run_workflow_pecan <- function(pecanxmlfile,run_all = TRUE){
     for (irun in seq(2,length(run_list))){
       to_dir <- file.path(settings$modeloutdir,run_list[irun])
       args <- paste(file.path(from_dir,'*'),to_dir,sep=' ')
-      system2('cp',args)
+      # system2('cp',args)
     }
     system2('rm',run_file)
     dummy <- file.copy(run2_file,run_file)

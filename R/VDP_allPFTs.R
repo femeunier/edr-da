@@ -1,7 +1,7 @@
 #' Plot variance decomposition plot for all PFTs
 #'
 #' @export
-VDP_allPFTs <- function(variable,mapdf){
+VDP_allPFTs <- function(variable,mapdf,parameter2remove = NULL){
   
   settings$sensitivity.analysis$variable=variable
   
@@ -16,7 +16,7 @@ VDP_allPFTs <- function(variable,mapdf){
   end_year=substr(settings$run$end.date,1,4)
   
   runModule.get.results(settings)
-  runModule.run.sensitivity.analysis(settings,plot = FALSE)
+  runModule.run.sensitivity.analysis(settings,plot = TRUE)
   
   results_file=paste("sensitivity.results",ensemble_id,variable,st_year,end_year,"Rdata",sep=".")
   load(file.path(settings$outdir,results_file))
@@ -81,6 +81,18 @@ VDP_allPFTs <- function(variable,mapdf){
   OP_all$variances=Variances_all[Ordering$ix]
   OP_all$partial.variances=OP_all$variances/sum(OP_all$variances)
   OP_all$PFT_all=PFT_all[Ordering$ix]
+  
+  if (!is.null(parameter2remove)){
+    params_all <- names(OP_all$coef.vars)
+    param2keep <- !(params_all %in% parameter2remove)
+    
+    OP_all$coef.vars <- OP_all$coef.vars[param2keep] 
+    OP_all$elasticities <- OP_all$elasticities[param2keep]
+    OP_all$sensitivities <- OP_all$sensitivities[param2keep]
+    OP_all$variances <- OP_all$variances[param2keep]
+    OP_all$partial.variances <- OP_all$partial.variances[param2keep]
+    OP_all$PFT_all <- OP_all$PFT_all[param2keep]
+  }
   
   fname <- sensitivity.filename(settings, "variance.decomposition",
                                 "pdf", all.var.yr = FALSE, pft = "all",

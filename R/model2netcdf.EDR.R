@@ -9,7 +9,6 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   output.path <- file.path(outdir,"RTM")
   if (patches){  
     flist <- list()
-    
     flist[["albedo"]] <- dir(file.path(output.path,"patches"),"albedo_nir") #  Albedo NIR file
   } else {
     flist <- list()
@@ -31,7 +30,27 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   
   Npatches <- ifelse(patches,as.numeric(readLines(con = file.path(output.path, 
                                                                   "patches/Npatches.dat")))[[1]],1)
-  # create lat/long/patches/lambda nc variables
+  
+  
+  length_leafI<-readLines(file.path(output.path,"lengths.dat"))
+  nPFT <- as.numeric(length_leafI[2])
+  PFT_num <- c(as.numeric(length_leafI[seq(3,2+nPFT)]))
+  
+  # Read prospect outputs
+  temp_par <- readLines(file.path(output.path,"reflect_par.dat"))
+  temp_nir <- readLines(file.path(output.path,"reflect_nir.dat"))
+  
+  PAR_prospect <- matrix(NA,nPFT,length(par.wl))
+  NIR_prospect <- matrix(NA,nPFT,length(nir.wl))
+  
+  for(i in seq(nPFT)){
+    PAR_prospect[i,] <- as.numeric(unlist(strsplit(temp_par[i]," ")))
+    NIR_prospect[i,] <- as.numeric(unlist(strsplit(temp_nir[i]," ")))
+  }
+
+  
+  
+  # create lat/long/patches/lambda nc dimensions
   lat <- ncdf4::ncdim_def("lat", "degrees_north",
                           vals = as.numeric(sitelat),
                           longname = "station_latitude")
@@ -42,6 +61,10 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   patch <- ncdf4::ncdim_def("Patches", "-",
                             vals = (1:Npatches),
                             longname = "Number of patches")
+  
+  PFT <- ncdf4::ncdim_def("PFT", "-",
+                            vals = PFT_num,
+                            longname = "Plant functional type")
   
   WL_par <- ncdf4::ncdim_def("par.wl", "nm",
                              vals = par.wl,
@@ -68,7 +91,11 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   out[['vis']] <- vis_filter*out[['PAR']]
   out[['red']] <- red_filter*out[['PAR']]
   out[['All']] <- EDR_outputs
-    
+  
+  out[["PAR_leaf"]] <- PAR_prospect
+  out[["NIR_leaf"]] <- NIR_prospect
+  out[["All_leaf"]] <- cbind(PAR_prospect,NIR_prospect)
+  
   # Create netcdf files
   nc_var <- list()
   nc_var[[1]] <- ncdf4::ncvar_def("PAR", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
@@ -85,6 +112,16 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   
   nc_var[[5]] <- ncdf4::ncvar_def("Spectrum", units = "-", dim = list(lon, lat, patch, WL_all), missval = -999, 
                                   longname = "All ecosystem reflectance")
+  
+  # Leaf variables 
+  nc_var[[6]] <- ncdf4::ncvar_def("PAR_leaf", units = "-", dim = list(lon, lat, PFT, WL_par), missval = -999, 
+                                  longname = "Leaf PAR reflectance")
+  
+  nc_var[[7]] <- ncdf4::ncvar_def("NIR_leaf", units = "-", dim = list(lon, lat, PFT, WL_nir), missval = -999, 
+                                  longname = "Leaf NIR reflectance")
+  
+  nc_var[[8]] <- ncdf4::ncvar_def("All_leaf", units = "-", dim = list(lon, lat, PFT, WL_all), missval = -999, 
+                                  longname = "All Leaf reflectance")
   
   nc <- ncdf4::nc_create(file.path(outdir, paste(start_year, "nc", sep = ".")), nc_var)
   

@@ -21,6 +21,7 @@ PACO_N=(readDataSet(hfile[['PACO_N']]))
 patch_number <- length(PACO_N)
 cohort_number <- sum(PACO_N)
 LAI=readDataSet(hfile[['LAI_CO']])
+CA =readDataSet(hfile[['CROWN_AREA_CO']])
 height=readDataSet(hfile[['HITE']])
 PFT=readDataSet(hfile[['PFT']])
 DBH=readDataSet(hfile[['DBH']])
@@ -32,6 +33,24 @@ npft <- max(unique(PFT))
 PAID <- rep(1:patch_number,PACO_N)
 
 hfile$close_all()
+
+config_xml <- file.path(dirname(h5file),"config.xml")
+pfts_target <- unique(PFT)
+
+allom_ed_param_default <- redr::allom_ed_param()
+
+param <- c( "b1Ca", "b2Ca","clumping_factor","SLA","b1Bl_large","b2Bl_large")
+param_all <- list()
+
+for (iparam in seq(param)){
+  for (ipft in seq(pfts_target)){
+    config_value <- get_ED_default_pft(config_xml, param[iparam], pft_target = pfts_target[ipft])
+    if (isempty(config_value)){
+      config_value <- allom_ed_param_default[[param[iparam]]][pfts_target[ipft]]
+    }
+    param_all[[param[iparam]]][pfts_target[ipft]] <- config_value
+  }
+}
 
 Col_pft <- data.frame(col = c('darkgreen','darkblue'), num=c(3,17), names = c('Tree','Liana'))
 
@@ -45,6 +64,7 @@ for (ipa in seq(init,patch_number)){
   pftconow    <- PFT[pos]
   laiconow    <- LAI[pos]
   nplantconow <- nplant[pos]
+  CAconow <- CA[pos]
   Nco <- length(hiteconow)
   
   pft_uni <- unique(pftconow)
@@ -54,7 +74,8 @@ for (ipa in seq(init,patch_number)){
   hites <- hiteconow
   colors <- as.character(Col_pft$col[match(pftconow,Col_pft$num)])
   
-  
+  #############################################################################
+  # Figure 1: traditional
   png(filename = file.path(figure_path,paste0("patch_",ipa,'.png')),
       width = 15, height = 10, units = "cm", pointsize = 12,
       bg = "white",  res = 300)
@@ -117,6 +138,81 @@ for (ipa in seq(init,patch_number)){
     }
   }
   dev.off()
+  
+  #############################################################################
+  # Figure 2: clumping and CA
+  
+  laiconow_clumped <-laiconow*param_all[["clumping_factor"]][pftconow]  
+  LAIs_clumped <- laiconow_clumped
+  cumLAI_clumped <- cumsum(LAIs_clumped)
+
+  png(filename = file.path(figure_path,paste0("patch_clumped",ipa,'.png')),
+      width = 15, height = 10, units = "cm", pointsize = 12,
+      bg = "white",  res = 300)
+  
+  
+  layout(mat=rbind(2,1),heights=c(4.6,1.4))
+  #---------------------------------------------------------------------------#
+  
+  #------ Legend. ------------------------------------------------------------#
+  par(mar=c(0.1,4.6,.001,2.1))
+  plot.new()
+  plot.window(xlim=c(0,1),ylim=c(0,1))
+  legend( x      = "bottom"
+          , inset  = 0.0
+          , legend = c(as.character(Col_pft$names),'Total')
+          , col   = c(as.character(Col_pft$col),'black')
+          , lty   = 1
+          , lwd   = 2 
+          , ncol   = 3
+          , title  = expression(bold("Plant functional type"))
+          , cex    = 1
+          , bg     = 0
+          , xpd    = TRUE
+          , box.lty= 0
+  )#end legend
+  #---------------------------------------------------------------------------#
+  
+  
+  #----- Plot all monthly means together. ------------------------------------#
+  par(mar=c(3.5,4.6,2.1,2.1), mgp=c(2.5,1,0))
+  plot.window(xlim=c(0,1),ylim=c(0,1))
+  
+  
+  letitre=paste("Patch area =",signif(patch_area[ipa],digits=2))
+  
+  where = pretty(cumLAI_clumped)
+  cumLAI
+  xpos <- sample(seq(where[1],where[length(where)],length.out = Nco))
+  
+  # Trees
+  plot(-1,0,lwd=0,ylim=c(0,1.02*max(hites)),xlim=c(0,where[length(where)]),ylab = 'Height [m]',xlab="Cumulate LAI, clumping factor included [-]",main=letitre)
+  for (ico in seq(1,Nco)){
+    L = where[length(where)]
+    alpha = CAconow[ico]
+    range = (xpos[ico] + c(0,(alpha*L)))-(alpha*L/2)
+    lines(range,c(hites[ico],hites[ico]),col=colors[ico],lwd=max(0.5,(LAIs_clumped[ico]/1))*2)
+    lines(c(xpos[ico],xpos[ico]),c(0,hites[ico]),col='chocolate4',lwd=1)
+  }
+  
+  # Cumulative LAI
+  for (ipft in c(pft_uni,npft+1)){
+    
+    if (ipft < npft + 1){
+      hites_temp <- hiteconow[pftconow == ipft]
+      LAI_temp <- LAIs_clumped[pftconow == ipft]    
+      cumLAI_clumped <- cumsum(LAI_temp)
+      C <- as.character(Col_pft$col[match(ipft,Col_pft$num)])
+      lines(c(cumLAI_clumped,cumLAI_clumped[length(cumLAI_clumped)]),c(hites_temp,0),col=C,lwd=2,type='l')
+    } else {
+      hites_temp <- hiteconow
+      LAI_temp <- LAIs_clumped
+      cumLAI_clumped <- cumsum(LAI_temp)
+      lines(c(cumLAI_clumped,cumLAI_clumped[length(cumLAI_clumped)]),c(hites_temp,0),col='black',lwd=2,type='l')
+    }
+  }
+  dev.off()
+  
 }
 
 }
