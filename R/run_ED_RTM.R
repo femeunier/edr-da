@@ -13,8 +13,6 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory){
  PAN <- inventory$PAN
  PACO_N <- inventory$PACO_N
  PFTselect <- inventory$PFTselect
-  
-  Ncohort <- length(dbh)
 
   soil_moisture <- params[1]
   

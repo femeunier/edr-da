@@ -1,13 +1,13 @@
 # Argument function
 use_meta.analysis <- FALSE
-use_leaf_PDA <- FALSE
+use_leaf_PDA <- TRUE
 
 # Data 
 observation <- Spectrum_canopy_data
 
 alpha_frac <- 0.8
 PFTselect <- 17
-crown_mod <- 0
+crown_mod <- 1
 
 h5file <- "/home/carya/output/PEcAn_99000000002/out/SA-median/RTM/history-S-2004-01-01-120000-g01.h5"
 
@@ -77,8 +77,8 @@ create_likelihood <- function(observed,inventory,crown_mod,rundir,outdir,plot = 
    
     # classifify them
     patch_class <- list()
-    patch_class[["low"]] <- which(COI < 0.25)
-    patch_class[["high"]] <- which(COI > 0.5)
+    patch_class[["low"]] <- which(COI < 0.4)
+    patch_class[["high"]] <- which(COI > 0.4)
     
     if (any(sapply(patch_class,isempty))) return(-1e20)
     
@@ -88,7 +88,7 @@ create_likelihood <- function(observed,inventory,crown_mod,rundir,outdir,plot = 
     ll <- rep(NA,length(scenarios))
     
     if (plot) {
-      plot(NA,NA,xlim=c(300,2500),ylim=c(0,0.6))
+      plot(NA,NA,xlim=c(300,2500),ylim=c(0,1))
       C<-c('black','blue')
     }
 
@@ -108,7 +108,7 @@ create_likelihood <- function(observed,inventory,crown_mod,rundir,outdir,plot = 
                                                   xout = waves)
       if (plot){
         lines(waves,simulated_reflectance_Waves$y,lty=1,col=C[iscenar]) # solid line = simulated
-        lines(waves,observed_Reflectance,lty=2,col=C[iscenar]) # solid line = simulated
+        lines(waves,observed_Reflectance,lty=2,col=C[iscenar]) # dashed reflectance = simulated
       }
       # lines(observed_Reflectance,simulated_reflectance_Waves$y,type='p',col=C[iscenar])
       
@@ -128,10 +128,10 @@ if (crown_mod == 0){
   dis2find_prim <- c('b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','Nlayers',
                      'Cab','carotenoids','Cw')
 } else {
-  dis2find <- c('b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','b1Ca','b2Ca','Nlayers',
-                'chlorophyll_a','chlorophyll_b','carotenoids','Cw')
-  dis2find_prim <- c('b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','b1Ca','b2Ca','Nlayers',
-                     'Cab','carotenoids','Cw')
+  dis2find <- c('b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','Nlayers',
+                'chlorophyll_a','chlorophyll_b','carotenoids','Cw','b1Ca','b2Ca')
+  dis2find_prim <- c('b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','Nlayers',
+                     'Cab','carotenoids','Cw','b1Ca','b2Ca')
 }
 
 
@@ -239,16 +239,17 @@ prior <- createPriorDensity(sampler_all, method = "multivariate", eps = 1e-10,
 ##############################################################################
 # likelihood function
 
-likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = FALSE)
+likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = TRUE)
 
 # Test likelihood function
-params<-sampler_all[1,]
+params<-sampler_all[100,]
 time0 <- Sys.time()
 likelihood(params)
 Sys.time() - time0
 
 # Run inversion
-iter <- 10000
+likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = FALSE)
+iter <- 500
 settings_MCMC <- list(iterations = iter, consoleUpdates = 1)
 
 setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = FALSE)

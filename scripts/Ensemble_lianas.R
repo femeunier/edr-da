@@ -7,7 +7,7 @@ graphics.off()
 
 # Library
 library(redr)
-library(PEcAn.all)
+# library(PEcAn.all)
 library(rlist)
 library(hdf5r)
 library(ggplot2)
@@ -34,6 +34,7 @@ edr_exe_path <- file.path("/home/carya/ED2/EDR/run","ed_2.1-opt_2")
 rerun <- TRUE       # Rerun ED2 simulation workflow?
 run_all <- FALSE    # run all simulations or just the first one (median)?
 rerun_RTM <- TRUE   # Rerun RTM simulations?
+
 use_meta.analysis <- FALSE # use meta.analysis posteriors for PDA?
 use_leaf_PDA <- FALSE
 
@@ -369,9 +370,13 @@ for (ipft in seq(npft)){
   posteriorMat <- getSample(samples, numSamples = Nrun_prospect,
                                            parametersOnly = TRUE)
   
-  posteriorMat <- as.data.frame(posteriorMat) %>% mutate(Cab = Ca + Cb) %>% select(-c(Ca,Cb))
+  posteriorMat_rel <- posteriorMat
+  posteriorMat_rel[,"Ca"] <-  posteriorMat_rel[,"Ca"] +   posteriorMat_rel[,"Cb"]
+  colnames(posteriorMat_rel)[colnames(posteriorMat_rel)=="Ca"] = "Cab"
+  posteriorMat_rel <- posteriorMat_rel[,-which(colnames(posteriorMat_rel)=="Cb")]
+  
   posterior_dis <- rbind(posterior_dis, 
-                         (melt(posteriorMat) %>% rename(Param = Var2) %>% select(c(Param,value)) %>% mutate(pft = current_pft)))
+                         (melt(posteriorMat_rel) %>% rename(Param = Var2) %>% select(c(Param,value)) %>% mutate(pft = current_pft)))
   
   temp_ensemble_prospect <- matrix(NA,nrow(posteriorMat),nrow(best_run[[current_pft]]))
   colnames(temp_ensemble_prospect) <- c(par.wl,nir.wl)
@@ -419,16 +424,21 @@ ggsave(filename = file.path(settings$outdir,"pfts","all","leaf_spectra_PDA.png")
        width = 10, height = 5, plot = spectra_post)
 
 
-# Plot of marginal distirbution
-
+# Plot of marginal distirbutions
+# Remove 5 of extreme
+posterior_dis_95 <- posterior_dis %>% group_by(Param,pft) %>% filter(value <= quantile(value,0.975) & value >= quantile(value,0.025))
 
 marginalPlots <-
-  ggplot(posterior_dis, aes(x = value, y = Param, fill = pft)) +
+  ggplot(posterior_dis %>% group_by(Param) %>% mutate(rel_value = (value - min(value))/(max(value)-min(value))), 
+         aes(x = rel_value, y = Param, fill = pft)) +
   geom_density_ridges(alpha= 0.5) +
   scale_fill_manual(values = df_PFT$Col) +
+  labs(y="") +
   theme_ridges(font_size = 13) + 
   theme_bw()
 
+ggsave(filename = file.path(settings$outdir,"pfts","all","leaf_marginalPlots.png"),dpi = 300,
+       width = 10, height = 5, plot = marginalPlots)
 
 ############################################################################################################
 ############################################################################################################

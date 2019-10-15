@@ -20,11 +20,46 @@ PDA_prospect <- function(settings,Spectrum_leaf_data,df_PFT,wl.min,wl.max,use_me
   
   N=10000
   
+  # Define likelihood
+  create_likelihood <- function(observed, waves) {
+    function(params) {
+      
+      # PROSPECT parameters
+      Ca <- params[1]
+      Cb <- params[2]
+      Cab <- Ca + Cb
+      Car <- params[3]
+      Cw <- params[4]
+      Cm <- params[5]
+      Nlayers <- params[6]
+      
+      ssigma <- params[7]
+      
+      optical_param <- c(Nlayers,Cab,Car,Cw,Cm)
+      names(default) <- c('Nlayers','chlab','carotenoids','Cw','Cm')
+      
+      # Call RTM
+      result <- tryCatch(
+        PEcAnRTM::prospect(optical_param, version = "5"),
+        error = function(e) NULL)
+      if (is.null(result)) return(-1e20)
+      reflectance <- result[,"reflectance"]
+      if (any(!is.finite(reflectance))) return(-1e20)
+      if (any(reflectance < 0)) return(-1e20)
+      if (any(reflectance > 1)) return(-1e20)
+      
+      reflectance_waves <- interp1(x = PEcAnRTM::wavelengths(reflectance),
+                                   y = as.vector(matrix(reflectance)),
+                                   waves)
+      # Calculate likelihood
+      ll <- sum(dnorm(reflectance_waves, observed, ssigma, log = TRUE))
+      return(ll)
+    }
+  }
+  
+  
   #############################################################################################
   # Loop over PFTs
-  
-  # par(mar=c(2,2,2,2))
-  # plot(x=NA,y=NA,xlim=c(0,2500),ylim=c(0,0.6),ylab= "Leaf reflectance",xlab="Wavelength")
    
   for (ipft in seq(df_PFT$names)){
     current_pft <- as.character(df_PFT$names[ipft])
@@ -78,44 +113,6 @@ PDA_prospect <- function(settings,Spectrum_leaf_data,df_PFT,wl.min,wl.max,use_me
     observation <- as.vector(temp$reflectance)
     waves <- temp$wavelength
     
-    # Define likelihood
-    create_likelihood <- function(observed, waves) {
-      function(params) {
-    
-        # PROSPECT parameters
-        Ca <- params[1]
-        Cb <- params[2]
-        Cab <- Ca + Cb
-        Car <- params[3]
-        Cw <- params[4]
-        Cm <- params[5]
-        Nlayers <- params[6]
-        
-        ssigma <- params[7]
-        
-        optical_param <- c(Nlayers,Cab,Car,Cw,Cm)
-        names(default) <- c('Nlayers','chlab','carotenoids','Cw','Cm')
-    
-        # Call RTM
-        result <- tryCatch(
-          PEcAnRTM::prospect(optical_param, version = "5"),
-          error = function(e) NULL)
-        if (is.null(result)) return(-1e20)
-        reflectance <- result[,"reflectance"]
-        if (any(!is.finite(reflectance))) return(-1e20)
-        if (any(reflectance < 0)) return(-1e20)
-        if (any(reflectance > 1)) return(-1e20)
-        
-        reflectance_waves <- interp1(x = PEcAnRTM::wavelengths(reflectance),
-                                     y = as.vector(matrix(reflectance)),
-                                     waves)
-        # Calculate likelihood
-        ll <- sum(dnorm(reflectance_waves, observed, ssigma, log = TRUE))
-        ll
-      }
-    }
-    
-    
     likelihood <- create_likelihood(observation, waves)
     
     # Run inversion
@@ -130,30 +127,6 @@ PDA_prospect <- function(settings,Spectrum_leaf_data,df_PFT,wl.min,wl.max,use_me
     
     PDA[[current_pft]] <- samples
     
-    # BayesianTools::gelmanDiagnostics(samples)
-    # summary(samples)
-    
-    
-    # correlationPlot(samples)
-    # plot(samples)
-    # marginalPlot(samples)
-    
-    # posteriorMat <- getSample(samples, parametersOnly = TRUE)
-    # posteriorMat_df <- melt(posteriorMat) %>%select(Var2,value) %>% rename(param = Var2)
-    # marginalPlot <- 
-    #   ggplot(posteriorMat_df) +
-    #   geom_density_ridges_gradient(aes(x = value, y = as.factor(param), fill = ..x..),
-    #                                alpha = 0.5,rel_min_height=0.01,scale = 3) + 
-    #   theme_minimal() +
-    #   scale_fill_viridis()
-    # 
-    # MAP_samples <- MAP(samples)$parametersMAP
-    # best_set[[current_pft]]<- c(MAP_samples['Nlayers'],MAP_samples['Ca']+MAP_samples['Cb'],MAP_samples['Car'],MAP_samples['Cw'],MAP_samples['Cm'])
-    # best_run[[current_pft]] <- PEcAnRTM::prospect(best_set[[current_pft]], version = "5")
-    
-    # C <- Colors[ipft]
-    # lines(PEcAnRTM::wavelengths(best_run[[current_pft]]),best_run[[current_pft]][,1],col=C,type='l')
-    # lines(waves,observation,type='p',col=C,pch=19,lwd=0.1)
   }
   
   return(PDA)

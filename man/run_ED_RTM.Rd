@@ -4,8 +4,7 @@
 \alias{run_ED_RTM}
 \title{Run ED RTM}
 \usage{
-run_ED_RTM(rundir, soil_moisture, N, Cab, Cm, Cw, sla, b1leaf, b2leaf,
-  b1Ca = NULL, b2CA = NULL, orient_factor, clumping_factor)
+run_ED_RTM(rundir, outdir, params, crown_mod, inventory)
 }
 \description{
 Run ED RTM

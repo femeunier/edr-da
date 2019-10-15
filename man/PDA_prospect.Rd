@@ -5,7 +5,7 @@
 \title{Run PDA on prospect}
 \usage{
 PDA_prospect(settings, Spectrum_leaf_data, df_PFT, wl.min, wl.max,
-  use_meta.analysis = TRUE)
+  use_meta.analysis = TRUE, nrChains = 4, nrIter = 10000)
 }
 \description{
 Run PDA on prospect
