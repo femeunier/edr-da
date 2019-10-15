@@ -4,7 +4,7 @@
 \alias{run_workflow_pecan}
 \title{Run PEcAn Workflow}
 \usage{
-run_workflow_pecan(pecanxmlfile)
+run_workflow_pecan(pecanxmlfile, run_all = TRUE)
 }
 \description{
 Run PEcAn Workflow

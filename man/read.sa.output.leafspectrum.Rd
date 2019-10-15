@@ -2,11 +2,11 @@
 % Please edit documentation in R/read.sa.output.leafspectrum.R
 \name{read.sa.output.leafspectrum}
 \alias{read.sa.output.leafspectrum}
-\title{read.sa.output.spectrum}
+\title{read.sa.output.leafspectrum}
 \usage{
 read.sa.output.leafspectrum(traits, quantiles, pecandir, outdir, variable,
-  sa.run.ids = NULL, par.wl, nir.wl, spectra_list_all)
+  sa.run.ids = NULL, par.wl, nir.wl, spectra_list_all, pft.name)
 }
 \description{
-read.sa.output.spectrum
+read.sa.output.leafspectrum
 }

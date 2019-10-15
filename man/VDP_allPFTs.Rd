@@ -4,7 +4,7 @@
 \alias{VDP_allPFTs}
 \title{Plot variance decomposition plot for all PFTs}
 \usage{
-VDP_allPFTs(variable, mapdf)
+VDP_allPFTs(variable, mapdf, parameter2remove = NULL)
 }
 \description{
 Plot variance decomposition plot for all PFTs
