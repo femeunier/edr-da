@@ -62,6 +62,8 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory){
   
   config_temp <- config[["pft"]]
   ipft <- 1
+  trait_values <- list()
+  
   while (!is.null(config_temp)){
     pft_num <- config_temp$num
     pft_name <- as.character(df_PFT$names[df_PFT$PFTnum==pft_num])

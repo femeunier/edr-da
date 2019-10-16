@@ -12,6 +12,8 @@ library(rlist)
 library(hdf5r)
 library(ggplot2)
 library(pracma)
+library(pracma)
+
 
 # Inputs
 pecanxmlfile <- "/home/carya/R/inputs/RTM_workflow_Paracou.xml"
