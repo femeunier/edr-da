@@ -102,11 +102,11 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   }
   
   # create  temp directory to run
-  temp_dir <- outdir
-  # temp_dir <- system2("mktemp","-d",stdout=TRUE)
-  # system2("mkdir",file.path(temp_dir,"patches"),stdout=NULL)
-  # dummy <- file.copy(file.path(outdir,"ED2IN"),temp_dir)
-  # dummy <- file.copy(list.files(outdir,pattern = "*.h5",full.names = TRUE),temp_dir)
+  # temp_dir <- outdir
+  temp_dir <- system2("mktemp","-d",stdout=TRUE)
+  system2("mkdir",file.path(temp_dir,"patches"),stdout=NULL)
+  dummy <- file.copy(file.path(outdir,"ED2IN"),temp_dir)
+  dummy <- file.copy(list.files(outdir,pattern = "*.h5",full.names = TRUE),temp_dir)
   
   output_RTM <- 
     PEcAnRTM::EDR(img_path = NULL,
@@ -156,7 +156,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   
   # remove temporary
-  # system2("rm",list("-rf",temp_dir),stdout=NULL)
+  system2("rm",list("-rf",temp_dir),stdout=NULL)
   
   
   return(list(output_RTM = output_RTM,COI = COI))
