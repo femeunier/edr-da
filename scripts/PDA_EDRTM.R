@@ -70,7 +70,7 @@ create_likelihood <- function(observed,inventory,crown_mod,rundir,outdir,plot = 
       
     ssigma <- params[1]
     
-    outputs <- run_ED_RTM(rundir,outdir,params[-1],crown_mod,inventory)
+    outputs <- run_ED_RTM(rundir,outdir,params[-1],crown_mod,inventory,par.wl,nir.wl)
        
     COI <- outputs[["COI"]]
     output_RTM <- outputs[["output_RTM"]]

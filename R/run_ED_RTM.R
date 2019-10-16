@@ -2,7 +2,7 @@
 #'
 #' @export
 
-run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory){
+run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
  dbh <- inventory$dbh
  pft <- inventory$pft
