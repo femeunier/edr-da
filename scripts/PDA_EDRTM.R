@@ -7,7 +7,7 @@ observation <- Spectrum_canopy_data
 
 alpha_frac <- 0.8
 PFTselect <- 17
-crown_mod <- 1
+crown_mod <- 0
 
 h5file <- "/home/carya/output/PEcAn_99000000002/out/SA-median/RTM/history-S-2004-01-01-120000-g01.h5"
 
@@ -28,10 +28,15 @@ ed2in$ITOUTPUT = 0
 ed2in$IOOUTPUT = 0
 ed2in$ISOUTPUT = 0
 
+
 ed2in$DTLSM = 900
 ed2in$RADFRQ = 900
 
 edr_ed2in <- PEcAnRTM::setup_edr(ed2in, outdir, date,TRUE)
+
+ed2in <- PEcAn.ED2::read_ed2in(file.path(outdir,"ED2IN"))
+ed2in$IEDCNFGF = "./config.xml"
+PEcAn.ED2::write_ed2in(ed2in, file.path(outdir,"ED2IN"))
 
 ED2IN_file <- file.path(outdir,"ED2IN")
 ed2in <- PEcAn.ED2::read_ed2in(ED2IN_file)
@@ -70,7 +75,7 @@ create_likelihood <- function(observed,inventory,crown_mod,rundir,outdir,plot = 
       
     ssigma <- params[1]
     
-    outputs <- run_ED_RTM(rundir,outdir,params[-1],crown_mod,inventory,par.wl,nir.wl)
+    outputs <- run_ED_RTM(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl)
        
     COI <- outputs[["COI"]]
     output_RTM <- outputs[["output_RTM"]]

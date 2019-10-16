@@ -4,6 +4,9 @@
 
 run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
+
+ params_EDR <- params[-1]  
+ 
  dbh <- inventory$dbh
  pft <- inventory$pft
  hite <- inventory$hite
@@ -14,9 +17,9 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
  PACO_N <- inventory$PACO_N
  PFTselect <- inventory$PFTselect
 
-  soil_moisture <- params[1]
+  soil_moisture <- params_EDR[1]
   
-  pft_params <- matrix(params[-(1)], ncol = npft)
+  pft_params <- matrix(params_EDR[-(1)], ncol = npft)
   
   # Calculate allometries
   b1leaf <- pft_params[1,]
@@ -103,10 +106,12 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   # create  temp directory to run
   # temp_dir <- outdir
-  temp_dir <- system2("mktemp","-d",stdout=TRUE)
+  temp_dir <- system2("mktemp",list("-d","-p",outdir),stdout=TRUE)
   system2("mkdir",file.path(temp_dir,"patches"),stdout=NULL)
   dummy <- file.copy(file.path(outdir,"ED2IN"),temp_dir)
   dummy <- file.copy(list.files(outdir,pattern = "*.h5",full.names = TRUE),temp_dir)
+  
+  write.table(t(params),file = file.path(temp_dir,"params.txt"),sep = ' ',row.names = FALSE,col.names = FALSE)
   
   output_RTM <- 
     PEcAnRTM::EDR(img_path = NULL,
@@ -128,6 +133,8 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
 
   if (crown_mod !=0){
     cai <- cai_allometry(dbh,nplant,b1leaf[pft],b2leaf[pft],sla[pft],b1Ca[pft],b2Ca[pft])
+  } else {
+    cai <- 1+0*lai
   }
   
   # Compute Crown occupancy index
@@ -156,7 +163,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   
   # remove temporary
-  system2("rm",list("-rf",temp_dir),stdout=NULL)
+  # system2("rm",list("-rf",temp_dir),stdout=NULL)
   
   
   return(list(output_RTM = output_RTM,COI = COI))
