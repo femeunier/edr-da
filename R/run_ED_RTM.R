@@ -4,7 +4,6 @@
 
 run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
-
  params_EDR <- params[-1]  
  
  dbh <- inventory$dbh
@@ -163,7 +162,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   
   # remove temporary
-  # system2("rm",list("-rf",temp_dir),stdout=NULL)
+  system2("rm",list("-rf",temp_dir),stdout=NULL)
   
   
   return(list(output_RTM = output_RTM,COI = COI))

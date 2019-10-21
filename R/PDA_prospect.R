@@ -36,7 +36,7 @@ PDA_prospect <- function(settings,Spectrum_leaf_data,df_PFT,wl.min,wl.max,use_me
       ssigma <- params[7]
       
       optical_param <- c(Nlayers,Cab,Car,Cw,Cm)
-      names(default) <- c('Nlayers','chlab','carotenoids','Cw','Cm')
+      names(optical_param) <- c('Nlayers','chlab','carotenoids','Cw','Cm')
       
       # Call RTM
       result <- tryCatch(
