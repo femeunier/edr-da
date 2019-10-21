@@ -48,7 +48,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   soil_reflect <- hapke_soil(rep(soil_moisture,2101))
   soil_file <- file.path("/tmp","soil_reflect_par.dat")
-  writeLines(text=paste(as.character(soil_reflect),collapse=" "),con = soil_file)
+  writeLines(text=paste((soil_reflect),collapse="\t"),con = soil_file)
   
   # Prospect parameters
   spectra_list <- list()
