@@ -124,7 +124,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
                   patches = TRUE),
     error = function(e) NULL)
   
-  if (output_RTM) return(list(output_RTM = NULL,COI = NULL))
+  if (is.null(output_RTM)) return(list(output_RTM = NULL,COI = NULL))
   # read LAI
   lai <- rep(NA,Ncohort)
   PACO_ID <- cumsum(c(1,PACO_N))
