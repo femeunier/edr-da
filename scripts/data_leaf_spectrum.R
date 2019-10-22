@@ -1,3 +1,5 @@
+# Kalacska et al.
+
 rm(list=ls())
 
 data2read <- "/home/carya/data/RTM/data/Figure1_kalacska.csv"
@@ -6,6 +8,7 @@ PFTs <- c("Liana_optical","Tree_optical")
 C <- c("#1E64C8","#137300")
 plot(NA,NA,xlim=c(400,2500),ylim=c(0,0.5),xlab="Wavelength",ylab="Reflectance")
 data_R <- list()
+df <- data.frame()
 for (ipft in seq(PFTs)){
   pft <- PFTs[ipft]
   columns <- ((ipft-1)*2+1):((ipft-1)*2+2)
@@ -14,11 +17,16 @@ for (ipft in seq(PFTs)){
   data_R[[pft]] <- temp[pos$ix,]
   lines(data_R[[pft]] [,1],data_R[[pft]] [,2],col = C[ipft])
   names(data_R[[pft]]) <- c("wavelength","reflectance")
+  
+  df <- rbind(df,data.frame(wavelength =  data_R[[pft]] [,1],
+                            Reflectance = data_R[[pft]] [,2],
+                            pft = pft))
 }
 
-saveRDS(data_R,file = "~/data/RTM/Spectrum_liana_data.R")
+saveRDS(df,file = "~/data/RTM/Figure1_kalacska.rds")
 
 ##################################################################################
+# Castro et al.
 
 rm(list=ls())
 
@@ -49,9 +57,43 @@ for (ipft in seq(PFTs)){
   lines(data_temp[["wavelength"]],data_temp[["R"]],col = C[ipft])
   data_R <- rbind(data_R,data_temp)
   data_raw <- rbind(data_raw,data.frame(wavelength = temp[pos$ix,1],
-                                        reflectance = temp[pos$ix,2],
+                                        Reflectance = temp[pos$ix,2],
                                         pft = pft))
 }
 
-saveRDS(data_R,file = "~/data/RTM/Figure6_castro.rds")
-saveRDS(data_raw,file = "~/data/RTM/Figure6_castro_raw.rds")
+saveRDS(data_raw,file = "~/data/RTM/Figure6_castro.rds")
+
+##################################################################################
+# de Guzman et al.
+
+rm(list=ls())
+
+data2read <- "/home/carya/data/RTM/data/Figure1_Guzman.csv"
+data <- read.csv(data2read)
+WL <- data[,1]
+Reflectance <- data[,-1]
+
+PFTs <- c("Tree_optical","Liana_optical")
+patterns <- c("Tree*","Liana*")
+
+C <- c("#137300","#1E64C8")
+
+plot(NA,NA,xlim=c(400,950),ylim=c(0,0.6),xlab="Wavelength",ylab="Reflectance")
+
+data_R <- data.frame()
+for (ipft in seq(PFTs)){
+  
+  pft <- PFTs[ipft]
+  is_pft <- grepl(patterns[ipft],colnames(Reflectance))
+  
+  columns <- which(is_pft)
+  temp <- melt((Reflectance[,columns])) %>% rename(Reflectance = value) %>% select(Reflectance)
+  matlines(WL,data[,columns],col = C[ipft])
+  
+  data_R <- rbind(data_R,data.frame(wavelength = rep(WL,length(columns)),
+                                    Reflectance = temp,
+                                    pft = pft))
+  
+}
+
+saveRDS(data_R,file = "~/data/RTM/Figure1_Guzman.rds")

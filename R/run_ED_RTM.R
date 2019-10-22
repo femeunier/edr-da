@@ -112,7 +112,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   write.table(t(params),file = file.path(temp_dir,"params.txt"),sep = ' ',row.names = FALSE,col.names = FALSE)
   
-  output_RTM <- 
+  output_RTM <- tryCatch(
     PEcAnRTM::EDR(img_path = NULL,
                   ed2in_path = file.path(temp_dir,"ED2IN"),
                   spectra_list = spectra_list,
@@ -121,8 +121,10 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
                   edr_exe_path =  edr_exe_path,
                   par.wl = par.wl, 
                   nir.wl = nir.wl,
-                  patches = TRUE)
+                  patches = TRUE),
+    error = function(e) NULL)
   
+  if (output_RTM) return(list(output_RTM = NULL,COI = NULL))
   # read LAI
   lai <- rep(NA,Ncohort)
   PACO_ID <- cumsum(c(1,PACO_N))
