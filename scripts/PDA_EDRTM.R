@@ -43,14 +43,15 @@ df_PFT <- df_PFT %>% arrange(PFTnum)%>% mutate(Col = Colors)
 df_PFT <- df_PFT %>% arrange(names)
 
 use_meta.analysis <- FALSE
-use_leaf_PDA <- TRUE
+use_leaf_PDA <- FALSE
+use_prior <- FALSE
 
 # Data 
 observation <- Spectrum_canopy_data
 
 alpha_frac <- 0.8
 PFTselect <- 17
-crown_mod <- 1
+crown_mod <- 0
 
 h5file <- "/home/carya/output/PEcAn_99000000002/out/SA-median/RTM/history-S-2004-01-01-120000-g01.h5"
 
@@ -208,15 +209,19 @@ for (ipft in seq(npft)){
   current_pft <- as.character(df_PFT$names[ipft])
   
   postfile <- file.path(settings$outdir,"pft",current_pft,"post.distns.Rdata")
+  priorfile <- file.path(settings$outdir,"pft",current_pft,"prior.distns.Rdata")
+  
   if (file.exists(postfile) & use_meta.analysis){
     load(postfile)
     distns <- post.distns
     Distributions <- rownames(post.distns)
-  } else {
-    priorfile <- file.path(settings$outdir,"pft",current_pft,"prior.distns.Rdata")
+  } else if (file.exists(priorfile) & use_prior){
     load(priorfile)
     distns <- prior.distns
     Distributions <- rownames(prior.distns)
+  } else {
+    distns <- NULL
+    Distributions <- NULL
   }
   
   sampler <- matrix(NA,N,length(dis2find))
