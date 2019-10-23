@@ -115,7 +115,19 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   # temp_dir <- outdir
   temp_dir <- system2("mktemp",list("-d","-p",outdir),stdout=TRUE)
   system2("mkdir",file.path(temp_dir,"patches"),stdout=NULL)
-  dummy <- file.copy(file.path(outdir,"ED2IN"),temp_dir)
+  
+  ED2IN_in <- file.path(outdir,"ED2IN")
+  ed2in_file <- file.path(temp_dir,"ED2IN")
+  
+  ed2in <- PEcAn.ED2::read_ed2in(ED2IN_in)
+  
+  ed2in$IEDCNFGF = file.path(temp_dir,"config.xml")
+  ed2in$FFILOUT = file.path(temp_dir,"analysis")
+  ed2in$SFILOUT = file.path(temp_dir,"history")
+  ed2in$SFILIN = file.path(temp_dir,"history")
+  
+  PEcAn.ED2::write_ed2in(ed2in, ed2in_file)
+  
   dummy <- file.copy(list.files(outdir,pattern = "*.h5",full.names = TRUE),temp_dir)
   
   write.table(t(params),file = file.path(temp_dir,"params.txt"),sep = ' ',row.names = FALSE,col.names = FALSE)
@@ -173,7 +185,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   
   # remove temporary
-  system2("rm",list("-rf",temp_dir),stdout=NULL)
+  # system2("rm",list("-rf",temp_dir),stdout=NULL)
   # print(temp_dir)
   
   return(list(output_RTM = output_RTM,COI = COI))
