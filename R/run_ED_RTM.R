@@ -173,8 +173,8 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   
   # remove temporary
-  # system2("rm",list("-rf",temp_dir),stdout=NULL)
-  print(temp_dir)
+  system2("rm",list("-rf",temp_dir),stdout=NULL)
+  # print(temp_dir)
   
   return(list(output_RTM = output_RTM,COI = COI))
 
