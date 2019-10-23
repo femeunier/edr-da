@@ -86,7 +86,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
     config_temp$b1Bl_small<-b1leaf_small[ipft]
     config_temp$b2Bl_small<-b2leaf_small[ipft]
     
-    config_temp$dbh_adult <- ifelse(dbh_adult[ipft]>0,dbh_adult[ipft],0.)
+    # config_temp$dbh_adult <- ifelse(dbh_adult[ipft]>0,dbh_adult[ipft],0.)
     
     if (!(is.null(b1Ca) & !is.null(b1Ca))){
       config_temp$b1Ca<-b1Ca[ipft]

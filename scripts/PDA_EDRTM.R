@@ -84,7 +84,6 @@ date <- ISOdatetime(
 edr_ed2in <- PEcAnRTM::setup_edr(ed2in, outdir, date,TRUE)
 
 ed2in <- PEcAn.ED2::read_ed2in(file.path(outdir,"ED2IN"))
-ed2in$IEDCNFGF = "./config.xml"
 PEcAn.ED2::write_ed2in(ed2in, file.path(outdir,"ED2IN"))
 
 ED2IN_file <- file.path(outdir,"ED2IN")
@@ -367,7 +366,7 @@ ensemble_results_select <- ensemble_results %>% group_by(scenar,wavelength) %>% 
 ggplot(ensemble_results_select,
                        aes(x = wavelength,y = median,colour = as.factor(scenar))) +
   geom_line(size = 1, alpha = 0.5,linetype = 2) +
-  geom_ribbon(aes(ymin = rmin, ymax = rmax,fill=as.factor(scenar)),alpha = 0.5, size=0.5, linetype=0) + 
+  geom_ribbon(aes(ymin = alphamin, ymax = alphamax,fill=as.factor(scenar)),alpha = 0.5, size=0.5, linetype=0) + 
   theme_bw() +
   scale_color_manual(values = df_PFT$Col) +
   scale_fill_manual(values = df_PFT$Col) +
@@ -377,7 +376,11 @@ ggplot(ensemble_results_select,
   geom_line(data = observation, aes(x = wavelength, y = reflectance,colour = as.factor(scenario)),size=1)
 
 likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = TRUE)
-likelihood(ensemble[which.max(ll_all),])
+best_simu <- which.max(ll_all)
+likelihood(ensemble[best_simu,])
+likelihood(params)
+plot(ensemble_results %>% filter(run == best_simu) %>% select(sim) %>% pull(),
+     ensemble_results %>% filter(run == best_simu) %>% select(obs) %>% pull())
 
 # Test likelihood function
 # params_best <- load_rds("~/data/RTM/current_samples0.rds")
