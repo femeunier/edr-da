@@ -1,14 +1,33 @@
 rm(list=ls())
 
-iter <- 10000
-nrChains <- 1
-wl.max <- 2500
-wl.min <- 350
-alpha <- 0.05
-Nrun_prospect <- 1000
+library(cowplot)
+library(BayesianTools)
+library(dplyr)
+library(redr)
+library(PEcAn.all)
+library(pracma)
+library(reshape2)
+library(ggplot2)
+library(ggridges)
 
-files <- c("Figure1_Guzman.rds","Figure1_kalacska.rds","Figure6_castro.rds")
-Names <- c("Guzman","Kalacska","Castro")
+# load(file="~/data/RTM/invert_leaf_liana.RData")
+
+iter  <- 10000
+nrChains  <- 2
+wl.max <- 2500
+wl.min  <- 350
+alpha  <- 0.05
+
+Nrun_prospect <- 500
+
+files <- c("Figure1_Guzman.rds","Figure1_kalacska.rds","Figure6_castro.rds",
+           "Figure6_sanchez2009_PNM.rds","Figure6_sanchez2009_FTS.rds",
+           "Figures4and5_castro_PNM.rds","Figures4and5_castro_FTS.rds")
+Names <- c("Guzman","Kalacska","Castro",
+           "Sanchez_PNM","Sanchez_FTS","Castro_PNM","Castro_FTS")
+
+# files <- c("Figure1_Guzman.rds","Figure1_kalacska.rds","Figure6_castro.rds")
+# Names <- c("Guzman","Kalacska","Castro")
 
 Colors <- c("#137300","#1E64C8")
 
@@ -66,6 +85,8 @@ create_likelihood <- function(observed, waves) {
 # Loop over papers
 
 marginalPlots <- spectra_post <- performance_prospect_plot <- PDA_all <- list()
+
+performance_all <- best_set_all <- posterior_all <- data.frame()
 
 for (ifile in seq(files)){
   data <- load_rds(file.path("~/data/RTM/",files[ifile]))
@@ -150,7 +171,7 @@ for (ifile in seq(files)){
                                 lower = lower, upper = upper, best = best)
     
     # Read Leaf spectra 
-    temp <- data %>% filter(pft==current_pft & wavelength>=wl.min & wavelength<=wl.max) %>% select(c('wavelength','Reflectance'))
+    temp <- data %>% filter(pft==current_pft & wavelength>=wl.min & wavelength<=wl.max) %>% dplyr::select(c('wavelength','Reflectance'))
     
     observation <- temp[["Reflectance"]] 
     waves <- temp[["wavelength"]]
@@ -163,7 +184,7 @@ for (ifile in seq(files)){
     samples <- BayesianTools::runMCMC(samples, settings = settings_MCMC)
     
     for (ichain in seq(nrChains)){
-      samples[[ichain]][["setup"]][["names"]] <- Prospect_param_names
+      samples[[ichain]][["setup"]][["names"]] <- Prospect_param_names_short
     }
     
     PDA[[current_pft]] <- samples
@@ -185,7 +206,7 @@ for (ifile in seq(files)){
     
     current_pft <- as.character(df_PFT$names[ipft])
     
-    temp <- data %>% filter(pft==current_pft & wavelength>=wl.min & wavelength<=wl.max) %>% select(c('wavelength','Reflectance'))
+    temp <- data %>% filter(pft==current_pft & wavelength>=wl.min & wavelength<=wl.max) %>% dplyr::select(c('wavelength','Reflectance'))
     
     observation <- temp %>% group_by(wavelength) %>% dplyr::summarize(R_m = mean(Reflectance),R_sd = sd(Reflectance))
     waves <- observation$wavelength
@@ -197,13 +218,17 @@ for (ifile in seq(files)){
     best_set[[current_pft]]<- c(MAP_samples['Nlayers'],MAP_samples['Cab'],MAP_samples['Car'],MAP_samples['Cw'],MAP_samples['Cm'])
     best_run[[current_pft]] <- PEcAnRTM::prospect(best_set[[current_pft]], version = "5")
     
+    
+    best_set_all <- rbind(best_set_all,
+                          as.data.frame(melt(MAP_samples)) %>% mutate(pft = current_pft,param = names(MAP_samples),data=Names[ifile]))
+    
     best_run_interp <- interp1(x=PEcAnRTM::wavelengths(best_run[[current_pft]]),
                                y = as.vector(best_run[[current_pft]][,1]),
                                xi = waves)
     
     C <- Colors[ipft]
     
-    current_model <- data.frame(obs = observation[["R_m"]], mod = best_run_interp , pft = current_pft)
+    current_model <- data.frame(obs = observation$R_m, mod = best_run_interp , pft = current_pft, data = Names[ifile])
     
     lm_pft <- lm(data = current_model,formula = mod ~ obs)
     rsquare[ipft] <- summary(lm_pft)$adj.r.squared
@@ -213,14 +238,21 @@ for (ifile in seq(files)){
     
     prospect_performance <- rbind(prospect_performance,current_model)
     
+    
     posteriorMat <- getSample(samples, numSamples = Nrun_prospect,
                               parametersOnly = TRUE)
     
     colnames(posteriorMat) <- Prospect_param_names_short
+    rownames(posteriorMat) <- 1:nrow(posteriorMat)
+    
+    posterior_all <- rbind(posterior_all,
+                           as.data.frame(melt(posteriorMat) %>% rename(Param = Var2,sample = Var1) %>% mutate(pft = current_pft,
+                                                                         site = Names[ifile])))
+    
     posteriorMat_rel <- posteriorMat
     
     posterior_dis <- rbind(posterior_dis, 
-                           (melt(posteriorMat_rel) %>% rename(Param = Var2) %>% select(c(Param,value)) %>% mutate(pft = current_pft)))
+                           (melt(posteriorMat_rel) %>% rename(Param = Var2) %>% dplyr::select(c(Param,value)) %>% mutate(pft = current_pft)))
     
     temp_ensemble_prospect <- matrix(NA,nrow(posteriorMat),nrow(best_run[[current_pft]]))
     colnames(temp_ensemble_prospect) <- seq(400,2500)
@@ -231,7 +263,7 @@ for (ifile in seq(files)){
     }
     
     ensemble_posterior <- rbind(ensemble_posterior,
-                                as.data.frame(melt(temp_ensemble_prospect) %>% select(Var2,value) %>%rename(wavelength = Var2, reflectance = value) %>% 
+                                as.data.frame(melt(temp_ensemble_prospect) %>% dplyr::select(Var2,value) %>%rename(wavelength = Var2, reflectance = value) %>% 
                                                 group_by(wavelength) %>% summarise(rmin = min(reflectance,na.rm=TRUE),
                                                                                    rmax = max(reflectance,na.rm=TRUE),
                                                                                    alphamin = quantile(reflectance,alpha/2,na.rm=TRUE),
@@ -240,6 +272,7 @@ for (ifile in seq(files)){
     
   }
   
+  performance_all <- rbind(performance_all,prospect_performance)
   #################################################################################################
   # Compare mean 
   
@@ -262,7 +295,7 @@ for (ifile in seq(files)){
   
   performance_prospect_plot[[Names[ifile]]] <-
     ggplot(prospect_performance,aes(x=obs,y=mod,colour = as.factor(pft),fill = as.factor(pft))) +
-    geom_smooth(method = "lm",level = 1-alpha) + 
+    # geom_smooth(method = "lm",level = 1-alpha) + 
     scale_color_manual(values = as.character(df_PFT$Col)) +
     scale_fill_manual(values = as.character(df_PFT$Col)) +
     geom_point() +
@@ -295,3 +328,67 @@ for (ifile in seq(files)){
     theme_ridges(font_size = 13) + 
     theme_bw()
 }
+
+
+all_marg_plots <- 
+  plot_grid(marginalPlots[[1]],
+            marginalPlots[[2]],
+            marginalPlots[[3]],
+            marginalPlots[[4]],
+            marginalPlots[[5]],
+            marginalPlots[[6]],
+            marginalPlots[[7]],
+            ncol=2, align="hv",rel_heights=c(1,1,1,1),rel_widths = c(1,1,1,1))
+
+ggsave(filename = file.path("~/data/RTM/","PDA_prospect_marginalDis.png"),dpi = 300,
+       plot = all_marg_plots,
+       width = 10, height = 5)
+
+all_OP_plots <- 
+  plot_grid(spectra_post[[1]],
+            spectra_post[[2]],
+            spectra_post[[3]],
+            spectra_post[[4]],
+            spectra_post[[5]],
+            spectra_post[[6]],
+            spectra_post[[7]],
+            ncol=2, align="hv",rel_heights=c(1,1,1,1),rel_widths = c(1,1,1,1))
+
+ggsave(filename = file.path("~/data/RTM/","PDA_prospect_outputs.png"),dpi = 300,
+       plot = all_OP_plots,
+       width = 10, height = 5)
+
+
+performance_all_plot <-
+  ggplot(performance_all,aes(x=obs,y=mod,colour = as.factor(pft),fill = as.factor(pft),shape = as.factor(data))) +
+  # geom_smooth(method = "lm",level = 1-alpha) + 
+  scale_color_manual(values = as.character(df_PFT$Col)) +
+  scale_fill_manual(values = as.character(df_PFT$Col)) +
+  scale_shape_manual(values=seq(0,length(unique(performance_all$data)))) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0,colour = 'black',linetype=2) + 
+  theme_bw()
+
+ggsave(filename = file.path("~/data/RTM/","performance_all.png"),dpi = 300,
+       plot = performance_all_plot,
+       width = 10, height = 5)
+
+posterior_all_m <- posterior_all %>% group_by(Param,pft,site) %>% summarise(value_m = mean(value),
+                                                                      value_sd = sd(value),
+                                                                      value_max = max(value))
+
+barplot_parameters <-
+  ggplot(data = posterior_all_m %>% group_by(Param) %>% mutate(rel_value = value_m/max(value_max)),
+         aes(x = pft, y = value_m,fill = pft,ymin = 0.95*value_m,ymax=value_m+value_sd)) + 
+  geom_errorbar(width=.2) +
+  geom_bar(stat = "identity",
+           position = position_dodge(width=0.2), width = 0.7) + 
+  facet_grid(Param ~ site,scales = "free") +
+  scale_fill_manual(values = as.character(df_PFT$Col)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+ggsave(filename = file.path("~/data/RTM/","barplot_param.png"),dpi = 300,
+       plot = barplot_parameters,
+       width = 10, height = 5)

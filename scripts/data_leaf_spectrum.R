@@ -4,8 +4,8 @@ rm(list=ls())
 
 data2read <- "/home/carya/data/RTM/data/Figure1_kalacska.csv"
 data <- read.csv(data2read)
-PFTs <- c("Liana_optical","Tree_optical")
-C <- c("#1E64C8","#137300")
+PFTs <- c("Tree_optical","Liana_optical")
+C <- c("#137300","#1E64C8")
 plot(NA,NA,xlim=c(400,2500),ylim=c(0,0.5),xlab="Wavelength",ylab="Reflectance")
 data_R <- list()
 df <- data.frame()
@@ -97,3 +97,66 @@ for (ipft in seq(PFTs)){
 }
 
 saveRDS(data_R,file = "~/data/RTM/Figure1_Guzman.rds")
+
+##################################################################################
+# Castro et al. (4 and 5)
+
+rm(list=ls())
+
+sites <- c("FTS","PNM")
+data2read <- "/home/carya/data/RTM/data/Figures4and5_castro.csv"
+data <- read.csv(data2read)
+PFTs <- c("Liana_optical","Tree_optical")
+C <- c("#1E64C8","#137300")
+plot(NA,NA,xlim=c(400,1000),ylim=c(0,0.6),xlab="Wavelength",ylab="Reflectance")
+
+for (isite in seq(sites)){
+  data_R <- list()
+  df <- data.frame()
+  for (ipft in seq(PFTs)){
+    pft <- PFTs[ipft]
+    columns <- (isite -1)*4 + (((ipft-1)*2+1):((ipft-1)*2+2))
+    temp <- data[!is.na(data[,columns[1]]),c(columns)]
+    pos <- sort(temp[,1],index.return = TRUE)
+    data_R[[pft]] <- temp[pos$ix,]
+    lines(data_R[[pft]] [,1],data_R[[pft]] [,2],col = C[ipft])
+    names(data_R[[pft]]) <- c("wavelength","reflectance")
+    
+    df <- rbind(df,data.frame(wavelength =  data_R[[pft]] [,1],
+                              Reflectance = data_R[[pft]] [,2],
+                              pft = pft))
+  }
+  saveRDS(df,file = paste0("~/data/RTM/Figures4and5_castro_",sites[isite],".rds"))
+}
+
+##################################################################################
+# Castro et al. (4 and 5)
+
+rm(list=ls())
+
+sites <- c("FTS","PNM")
+data2read <- "/home/carya/data/RTM/data/Figure6_sanchez2009.csv"
+data <- read.csv(data2read)
+PFTs <- c("Tree_optical","Liana_optical")
+C <- c("#137300","#1E64C8")
+plot(NA,NA,xlim=c(400,1000),ylim=c(0,0.6),xlab="Wavelength",ylab="Reflectance")
+
+for (isite in seq(sites)){
+  data_R <- list()
+  df <- data.frame()
+  for (ipft in seq(PFTs)){
+    pft <- PFTs[ipft]
+    columns <- (isite -1)*4 + (((ipft-1)*2+1):((ipft-1)*2+2))
+    temp <- data[!is.na(data[,columns[1]]),c(columns)]
+    pos <- sort(temp[,1],index.return = TRUE)
+    data_R[[pft]] <- temp[pos$ix,]
+    lines(data_R[[pft]] [,1],data_R[[pft]] [,2],col = C[ipft])
+    names(data_R[[pft]]) <- c("wavelength","reflectance")
+    
+    df <- rbind(df,data.frame(wavelength =  data_R[[pft]] [,1],
+                              Reflectance = data_R[[pft]] [,2],
+                              pft = pft))
+  }
+  saveRDS(df,file = paste0("~/data/RTM/Figure6_sanchez2009_",sites[isite],".rds"))
+}
+

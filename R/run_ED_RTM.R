@@ -21,28 +21,33 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   pft_params <- matrix(params_EDR[-(1)], ncol = npft)
   
   # Calculate allometries
-  b1leaf <- pft_params[1,]
-  b2leaf <- pft_params[2,]
-  sla <-  pft_params[3,]
+  b1leaf_small <- pft_params[1,]
+  b2leaf_small <- pft_params[2,]
+  b1leaf_large <- pft_params[3,]
+  b2leaf_large <- pft_params[4,]
   
-  orient_factor <- pft_params[4,]
-  clumping_factor <- pft_params[5,]
+  dbh_adult <- (b1leaf_large/b1leaf_small)^(1/(b2leaf_small-b2leaf_large))
+  
+  sla <-  pft_params[5,]
+  
+  orient_factor <- pft_params[6,]
+  clumping_factor <- pft_params[7,]
   
   # Extract Prospect parameters
-  N <- pft_params[6,]
-  Cab <- pft_params[7,]
+  N <- pft_params[8,]
+  Cab <- pft_params[9,]
   
-  Car <- pft_params[8,]
-  Cw <- pft_params[9,]
-  Cm <-  1/pft_params[3,]/10
+  Car <- pft_params[10,]
+  Cw <- pft_params[11,]
+  Cm <- pft_params[12,]
   
   if (crown_mod == 0){
     cai <- rep(1,Ncohort)
     b1Ca <- NULL
     b2Ca <- NULL
   } else {
-    b1Ca <- pft_params[10,]
-    b2Ca <- pft_params[11,]  
+    b1Ca <- pft_params[13,]
+    b2Ca <- pft_params[14,]  
   }
   
   soil_reflect <- hapke_soil(rep(soil_moisture,2101))
@@ -75,11 +80,13 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
       config_temp[[params2remove[iparam]]] <- NULL
     }
     
-    config_temp$b1Bl_large<-b1leaf[ipft]
-    config_temp$b2Bl_large<-b2leaf[ipft]
+    config_temp$b1Bl_large<-b1leaf_large[ipft]
+    config_temp$b2Bl_large<-b2leaf_large[ipft]
     
-    config_temp$b1Bl_small<-b1leaf[ipft]
-    config_temp$b2Bl_small<-b2leaf[ipft]
+    config_temp$b1Bl_small<-b1leaf_small[ipft]
+    config_temp$b2Bl_small<-b2leaf_small[ipft]
+    
+    config_temp$dbh_adult <- ifelse(dbh_adult[ipft]>0,dbh_adult[ipft],0.)
     
     if (!(is.null(b1Ca) & !is.null(b1Ca))){
       config_temp$b1Ca<-b1Ca[ipft]
@@ -88,10 +95,11 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
     
     config_temp$orient_factor<-orient_factor[ipft]
     config_temp$clumping_factor<-clumping_factor[ipft]
+    config_temp$SLA <- sla[ipft]*0.48
     
-    if ("SLA" %in% names(config_temp)){
-      config_temp$SLA <- sla[ipft]*0.48
-    }
+    # if ("SLA" %in% names(config_temp)){
+    #   config_temp$SLA <- sla[ipft]*0.48
+    # }
     if ("Vcmax" %in% names(config_temp)){
       config_temp$Vcmax <- as.character(as.numeric(config_temp$Vcmax)*2.4) # To go back to PEcAn values
     }
@@ -133,7 +141,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   }
 
   if (crown_mod !=0){
-    cai <- cai_allometry(dbh,nplant,b1leaf[pft],b2leaf[pft],sla[pft],b1Ca[pft],b2Ca[pft])
+    cai <- cai_allometry(dbh,nplant,b1leaf_large[pft],b2leaf_large[pft],sla[pft],b1Ca[pft],b2Ca[pft])
   } else {
     cai <- 1+0*lai
   }
@@ -158,14 +166,15 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
     h_alpha <- interp1(x = cumsum(laiconow), y = hiteconow, xi = ifelse(LAI_alpha<laiconow[1],laiconow[1],LAI_alpha))
     
     COI[ipa] <- max(0,min(1,sum(laiconow[pftconow %in% PFTselect & hiteconow >= h_alpha])/LAI_alpha))
+    COI[ipa] <- ifelse(any(PFTselect %in% pftconow),1,0)
   }
   # To check
   # system2("cp",list("-r",temp_dir,"~/data/RTM/"))
   
   
   # remove temporary
-  system2("rm",list("-rf",temp_dir),stdout=NULL)
-  
+  # system2("rm",list("-rf",temp_dir),stdout=NULL)
+  print(temp_dir)
   
   return(list(output_RTM = output_RTM,COI = COI))
 
