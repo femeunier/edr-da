@@ -2,11 +2,28 @@
 #'
 #' @export
 model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499, 
-                             nir.wl = 2500,patches = FALSE){
+                             nir.wl = 2500,patches = FALSE,PFTselect=1){
   
   start_year <- lubridate::year(start_date)
   
   output.path <- file.path(outdir,"RTM")
+  if (patches){  
+    flist <- list()
+    flist[["albedo"]] <- dir(file.path(output.path,"patches"),"albedo_nir") #  Albedo NIR file
+  } else {
+    flist <- list()
+    flist[["albedo"]] <- dir(output.path,"albedo_nir")           #  Albedo NIR file 
+  }
+  
+  # check if there are files
+  file.check <- sapply(flist, function (f) length(f) != 0)
+  
+  if (!any(file.check)) {
+    # no output files
+    PEcAn.logger::logger.warn("WARNING: No output files found for :", output.path," Trying with:", outdir)
+  }
+  
+  output.path <- file.path(outdir)
   if (patches){  
     flist <- list()
     flist[["albedo"]] <- dir(file.path(output.path,"patches"),"albedo_nir") #  Albedo NIR file
@@ -96,6 +113,23 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   out[["NIR_leaf"]] <- NIR_prospect
   out[["All_leaf"]] <- cbind(PAR_prospect,NIR_prospect)
   
+  # COI filter
+  
+  h5file <- tail(list.files(path=outdir,pattern='*.h5',full.names = TRUE),1)
+  
+  if (patches){
+    COI <- calc_COI(h5file,PFTselect)
+  } else {
+    COI <- 1
+  }
+  
+  COI_filter <- COI_filter_inverse <-t(matrix(rep(vis,Npatches),ncol = Npatches))
+  COI_filter[COI <=0.5,] <- NA
+  COI_filter_inverse[COI >0.5,] <- NA
+  
+  out[['PAR_liana']] <- out[['PAR']]*COI_filter
+  out[['PAR_tree']] <- out[['PAR']]*COI_filter_inverse
+  
   # Create netcdf files
   nc_var <- list()
   nc_var[[1]] <- ncdf4::ncvar_def("PAR", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
@@ -122,6 +156,12 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   
   nc_var[[8]] <- ncdf4::ncvar_def("All_leaf", units = "-", dim = list(lon, lat, PFT, WL_all), missval = -999, 
                                   longname = "All Leaf reflectance")
+  
+  nc_var[[9]] <- ncdf4::ncvar_def("PAR_liana", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
+                                  longname = "PAR ecosystem reflectance")
+  
+  nc_var[[10]] <- ncdf4::ncvar_def("PAR_tree", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
+                                  longname = "PAR ecosystem reflectance")
   
   nc <- ncdf4::nc_create(file.path(outdir, paste(start_year, "nc", sep = ".")), nc_var)
   

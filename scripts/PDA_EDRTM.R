@@ -1,4 +1,3 @@
-# Argument function
 rm(list = ls())
 
 # Library
@@ -18,6 +17,7 @@ library(zoo)
 library(stringr)
 library(BayesianTools)
 library(Hmisc)
+# Argument function
 
 # Data canopy spectra
 
@@ -28,7 +28,12 @@ nir.wl = 2500
 
 edr_exe_path <- file.path("/home/carya/ED2/EDR/run","ed_2.1-opt")
 
-Spectrum_canopy_data <- load_rds("~/data/RTM/Spectrum_canopy_data.R")
+# Data
+
+# Spectrum_canopy_data <- readRDS("~/data/RTM/Figure3_marvin.rds")
+# Spectrum_canopy_data <- readRDS("~/data/RTM/Figure1_kalacslab.rds")
+Spectrum_canopy_data <- readRDS("~/data/RTM/Figure3_sanchez2006.rds")
+
 Spectrum_canopy_data <-
   rbind(cbind(as.data.frame(Spectrum_canopy_data[[2]]),scenario='low'),
         cbind(as.data.frame(Spectrum_canopy_data[[1]]),scenario='high'))
@@ -58,6 +63,8 @@ h5file <- "/home/carya/output/PEcAn_99000000002/out/SA-median/RTM/history-S-2004
 npft <- length(df_PFT$names)
 
 rundir <- "/home/carya/output/PEcAn_99000000002/run/SA-median"
+modeloutdir <- "/home/carya/output/PEcAn_99000000002/out/"
+
 outdir <- file.path(settings$modeloutdir,"PDA_EDRTM")
 
 ed2in <- PEcAn.ED2::read_ed2in(file.path(rundir,"ED2IN"))
@@ -123,7 +130,7 @@ create_likelihood <- function(observed,inventory,crown_mod,rundir,outdir,plot = 
       
     ssigma <- params[1]
     
-    outputs <- run_ED_RTM(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl)
+    outputs <- run_ED_RTM(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl,temp=TRUE)
        
     COI <- outputs[["COI"]]
     output_RTM <- outputs[["output_RTM"]]
@@ -140,8 +147,11 @@ create_likelihood <- function(observed,inventory,crown_mod,rundir,outdir,plot = 
     
     ll <- rep(NA,length(scenarios))
     
+    waves <- observed %>% dplyr::select(wavelength)
     if (plot) {
-      plot(NA,NA,xlim=c(300,2500),ylim=c(0,1))
+      plot(NA,NA,xlim=c(min(waves)*0.95,1.05*max(waves)),
+           ylim=c(0.95*min(observed%>% dplyr::select(reflectance)%>%pull()),
+                  1.05*max(observed%>% dplyr::select(reflectance)%>%pull())))
       C<-c('black','blue')
     }
 
@@ -293,12 +303,112 @@ prior <- createPriorDensity(sampler_all, method = "multivariate", eps = 1e-10,
                             lower = lower_all, upper = upper_all, best = best_all)
 
 observed <- observation
-##############################################################################
-# likelihood function
-likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = FALSE)
+# ##############################################################################
+# # likelihood function
+# likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = FALSE)
+# 
+# # Ensemble prior
+# 
+# Nensemble <- 1
+# ensemble <- getSample(sampler_all,numSamples = Nensemble)
+# ll_all <- rep(NA,Nensemble)
+# 
+# ensemble_results <- data.frame()
+# for (iensemble in seq(1,Nensemble)){
+#   print(iensemble)
+#   
+#   params <- ensemble[iensemble,]
+#   
+#   ssigma <- params[1]
+#   
+#   outputs <- run_ED_RTM(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl)
+#   
+#   COI <- outputs[["COI"]]
+#   output_RTM <- outputs[["output_RTM"]]
+#   
+#   # classifify them
+#   patch_class <- list()
+#   patch_class[["low"]] <- which(COI < 0.25)
+#   patch_class[["high"]] <- which(COI > 0.5)
+#   
+#   if (any(sapply(patch_class,isempty))){
+#     ll_all[iensemble] <- -1e20
+#     next
+#   }
+#   
+#   # Get outputs
+#   scenarios <- as.character(unique(observed[["scenario"]]))
+#   ll <- rep(NA,length(scenarios))
+#   
+#   for (iscenar in seq(scenarios)){
+#     temp <- observed %>% filter(scenario == scenarios[[iscenar]])
+#     
+#     waves <- temp %>% dplyr::select(wavelength) %>% pull()
+#     observed_Reflectance <- temp %>% dplyr::select(reflectance) %>% pull()
+#     
+#     if (length(patch_class[[scenarios[[iscenar]]]])>1){
+#       simulated_reflectance <- apply(output_RTM[patch_class[[scenarios[[iscenar]]]],],2,median)
+#     } else {
+#       simulated_reflectance <- output_RTM[patch_class[[scenarios[[iscenar]]]],]
+#     }
+#     simulated_reflectance_Waves <- approxExtrap(x = c(par.wl,nir.wl),
+#                                                 y = simulated_reflectance,
+#                                                 xout = waves)
+#     
+#     ensemble_results <- rbind(ensemble_results,
+#                               data.frame(run = iensemble,
+#                                          wavelength = waves,
+#                                          scenar = scenarios[iscenar],
+#                                          sim = simulated_reflectance_Waves$y,
+#                                          obs = observed_Reflectance))
+#     
+#     ll[iscenar] <- sum(dnorm(simulated_reflectance_Waves$y, observed_Reflectance, ssigma, log = TRUE))
+#   }
+#   
+#   ll_all[iensemble] <- sum(ll)
+# }
+# 
+# alpha = 0.05
+# ensemble_results_select <- ensemble_results %>% group_by(scenar,wavelength) %>% summarise(rmin = min(sim,na.rm = TRUE),
+#                                                                             rmax = max(sim,na.rm = TRUE),
+#                                                                             alphamin = quantile(sim,alpha/2,na.rm = TRUE),
+#                                                                             alphamax = quantile(sim,1-alpha/2,na.rm = TRUE),
+#                                                                             median = median(sim,na.rm = TRUE))
+# 
+# ggplot(ensemble_results_select,
+#                        aes(x = wavelength,y = median,colour = as.factor(scenar))) +
+#   geom_line(size = 1, alpha = 0.5,linetype = 2) +
+#   geom_ribbon(aes(ymin = rmin, ymax = rmax,fill=as.factor(scenar)),alpha = 0.5, size=0.5, linetype=0) + 
+#   theme_bw() +
+#   scale_color_manual(values = df_PFT$Col) +
+#   scale_fill_manual(values = df_PFT$Col) +
+#   xlab('Wavelength (nm)') + 
+#   ylab('Canopy reflectance (-)') +
+#   theme(panel.grid=element_blank())+
+#   geom_point(data = observation, aes(x = wavelength, y = reflectance,colour = as.factor(scenario)),size=1)
+# 
+# likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = TRUE)
+# best_simu <- which.max(ll_all)
+# likelihood(ensemble[best_simu,])
+# plot(ensemble_results %>% filter(run == best_simu) %>% select(sim) %>% pull(),
+#      ensemble_results %>% filter(run == best_simu) %>% select(obs) %>% pull())
+# summary(lm(data = ensemble_results %>% filter(run == best_simu),
+#         formula = obs ~ sim))$adj.r.squared
 
-Nensemble <- 100
-ensemble <- getSample(sampler_all,numSamples = Nensemble)
+##########################################################################
+# Posterior ensemble
+Nensemble <- 250
+# best_set <- readRDS("~/data/RTM/current_samples_b0.rds")
+# best_set <- readRDS("~/data/RTM/current_samples_b.rds")
+# best_set <- readRDS("~/data/RTM/current_samples_b0.rds")
+# best_set <- samples
+# best_set <- readRDS("~/data/RTM/current_samples_sanchez.rds")
+
+best_set <- readRDS("~/data/RTM/current_samples_marvin.rds")
+likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = TRUE)
+likelihood(MAP(best_set)$parametersMAP)
+
+ensemble <- getSample(best_set,numSamples = Nensemble)
 ll_all <- rep(NA,Nensemble)
 
 ensemble_results <- data.frame()
@@ -356,15 +466,15 @@ for (iensemble in seq(1,Nensemble)){
   ll_all[iensemble] <- sum(ll)
 }
 
-alpha = 0.05
+alpha <- 0.05
 ensemble_results_select <- ensemble_results %>% group_by(scenar,wavelength) %>% summarise(rmin = min(sim,na.rm = TRUE),
-                                                                            rmax = max(sim,na.rm = TRUE),
-                                                                            alphamin = quantile(sim,alpha/2,na.rm = TRUE),
-                                                                            alphamax = quantile(sim,1-alpha/2,na.rm = TRUE),
-                                                                            median = median(sim,na.rm = TRUE))
+                                                                                          rmax = max(sim,na.rm = TRUE),
+                                                                                          alphamin = quantile(sim,alpha/2,na.rm = TRUE),
+                                                                                          alphamax = quantile(sim,1-alpha/2,na.rm = TRUE),
+                                                                                          median = median(sim,na.rm = TRUE))
 
 ggplot(ensemble_results_select,
-                       aes(x = wavelength,y = median,colour = as.factor(scenar))) +
+       aes(x = wavelength,y = median,colour = as.factor(scenar))) +
   geom_line(size = 1, alpha = 0.5,linetype = 2) +
   geom_ribbon(aes(ymin = alphamin, ymax = alphamax,fill=as.factor(scenar)),alpha = 0.5, size=0.5, linetype=0) + 
   theme_bw() +
@@ -373,34 +483,174 @@ ggplot(ensemble_results_select,
   xlab('Wavelength (nm)') + 
   ylab('Canopy reflectance (-)') +
   theme(panel.grid=element_blank())+
-  geom_line(data = observation, aes(x = wavelength, y = reflectance,colour = as.factor(scenario)),size=1)
+  geom_point(data = observation, aes(x = wavelength, y = reflectance,colour = as.factor(scenario)),size=1)
 
 likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = TRUE)
 best_simu <- which.max(ll_all)
 likelihood(ensemble[best_simu,])
-likelihood(params)
-plot(ensemble_results %>% filter(run == best_simu) %>% select(sim) %>% pull(),
-     ensemble_results %>% filter(run == best_simu) %>% select(obs) %>% pull())
+
+summary(lm(data = ensemble_results %>% filter(run == best_simu),
+           formula = obs ~ sim))$adj.r.squared
+
+ggplot(data = ensemble_results %>% filter(run == best_simu),
+       aes(x=obs,y=sim,colour = as.factor(scenar),fill = as.factor(scenar))) +
+  scale_color_manual(values = as.character(df_PFT$Col)) +
+  scale_fill_manual(values = as.character(df_PFT$Col)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0,colour = 'black',linetype=2) + 
+  theme_bw()
+
+
+# ggplot(posterior_dis, 
+#        aes(x = rel_value, y = Param, fill = pft)) +
+#   geom_density_ridges(alpha= 0.5) +
+#   scale_color_manual(values = as.character(df_PFT$Col)) +
+#   scale_fill_manual(values = as.character(df_PFT$Col)) +
+#   labs(y="") +
+#   theme_ridges(font_size = 13) + 
+#   theme_bw()
 
 # Test likelihood function
 # params_best <- load_rds("~/data/RTM/current_samples0.rds")
 # params <- MAP(params_best)$parametersMAP
-
-params <- sampler_all[100,]
-time0 <- Sys.time()
-likelihood(params)
-Sys.time() - time0
+# 
+# params <- sampler_all[100,]
+# time0 <- Sys.time()
+# likelihood(params)
+# Sys.time() - time0
 
 # Run inversion
 # likelihood <- create_likelihood(observation,inventory,crown_mod,rundir,outdir,plot = FALSE)
-# iter <- 500
+# iter <- 100
 # settings_MCMC <- list(iterations = iter, consoleUpdates = 1)
-# 
+# # 
 # setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = FALSE)
 # samples <- BayesianTools::runMCMC(setup,settings = settings_MCMC)
 # samples <- BayesianTools::runMCMC(samples,settings = settings_MCMC)
 # BayesianTools::gelmanDiagnostics(samples)
+
+
+#########################################################
+# Univariate sensitivity analysis
+
+sampling <- getSample(best_set,parametersOnly = TRUE,numSamples = 10000)
+median_bs <- apply(sampling,2,quantile,0.5)
+
+# Median simulations
+OP_dir <- file.path("/home/carya/output/PEcAn_99000000002/out/PDA_EDRTM","SA-median")
+if (!dir.exists(OP_dir)){
+  dir.create(OP_dir)
+  dir.create(file.path(OP_dir,"patches"))
+}
+OP <- run_ED_RTM(rundir,outdir,params=median_bs,crown_mod,inventory,par.wl,nir.wl,
+           temp = FALSE,outputdir = OP_dir)
+model2netcdf.EDR(outdir = OP_dir,
+                 sitelat = settings$run$site$lat,
+                 sitelon = settings$run$site$lon,
+                 start_date = start.date,
+                 par.wl = par.wl, 
+                 nir.wl = nir.wl,
+                 patches = TRUE,
+                 PFTselect = PFTselect) 
+
+quantiles <- c(0.159,0.841)
+Nparams <- length(median_bs)
+Names_params <- names(median_bs)
+
+
+# SA simulations
+PFT_names <- as.character(unlist(lapply(settings$pfts, "[[","name")))
+PFT <- c("","",rep(PFT_names[1],(length(median_bs)-2)/2),rep(PFT_names[2],(length(median_bs)-2)/2))
+
+for (iquantile in seq(quantiles)){
+  quantiles_bs <- apply(sampling,2,quantile,quantiles[iquantile])
+  
+  for (iparam in seq(1,Nparams)){
+    temp_params <- median_bs
+    temp_params[iparam] <- quantiles_bs[iparam]
+    
+    simname <- paste0("SA-",ifelse(!identical(PFT[iparam],""),paste0(PFT[iparam],"-"),""),Names_params[iparam],"-",quantiles[iquantile])
+    OP_dir <- file.path(outdir,simname)
+    if (!dir.exists(OP_dir)){
+      dir.create(OP_dir)
+      dir.create(file.path(OP_dir,"patches"))
+    }
+    
+    OP <- run_ED_RTM(rundir,outdir,params=temp_params,crown_mod,inventory,par.wl,nir.wl,
+                     temp = FALSE,outputdir = OP_dir)
+
+    model2netcdf.EDR(OP_dir,sitelat = settings$run$site$lat,sitelon = settings$run$site$lon,
+                     start_date = start.date,par.wl = par.wl,nir.wl = nir.wl,patches = TRUE)
+    
+    
+  }
+}
+
+
+# Variables to save
+sa.run.ids <- list()
+sa.samples <- list(env = data.frame())
+quantiles_all <- c(0.159,0.5,0.841) # Add median
+pft.names <- PFT_names
+trait.names <- trait.samples <- list()
+
+delta_param = 0
+for (pft in (PFT_names)){
+  mat <- runs <- array(NA,c(length(quantiles_all),(Nparams-2)/2))
+  rownames(mat) <-  rownames(runs) <- quantiles_all*100
+  colnames(mat) <- colnames(runs) <- Names_params[3:(((Nparams-2)/2)+2)]
+  
+  for (iparam in seq(3,(((Nparams-2)/2)+2))){
+    simname <- paste0("SA-",pft,"-",Names_params[iparam],"-",quantiles_all[iquantile])
+    for (iquantile in seq(quantiles_all)){
+      quantiles_bs <- apply(sampling,2,quantile,quantiles_all[iquantile])
+      
+      temp_params <- median_bs
+      temp_params[delta_param+iparam] <- quantiles_bs[delta_param+iparam]
+      
+      mat[iquantile,iparam-2] <- temp_params[delta_param+iparam]
+      if (quantiles_all[iquantile] != 0.5){
+        runs[iquantile,iparam-2] <- simname
+      } else {
+        runs[iquantile,iparam-2] <- "SA-median"       
+      }
+    }
+    trait.samples[[pft]][[Names_params[iparam]]] <- sampling[,delta_param+iparam]
+  }
+  
+  sa.run.ids[[pft]] <- runs
+  sa.samples[[pft]] <- as.data.frame(mat)
+  trait.names[[pft]] <- Names_params[seq(3,((Nparams-2)/2)+2)]
+  
+  delta_param <- delta_param + ((Nparams-2)/2)
+}
+
+save(sa.run.ids,sa.samples, file = "/home/carya/output/PEcAn_99000000002/sensitivity.samples.NOENSEMBLEID.Rdata")
+save(trait.names,pft.names,trait.samples, file = "/home/carya/output/PEcAn_99000000002/samples.Rdata")
+
+settings <- PEcAn.settings::read.settings("/home/carya/output/PEcAn_99000000002/pecan.CONFIGS.xml")
+settings$outdir <- "/home/carya/output/PEcAn_99000000002"
+settings$modeloutdir <- "/home/carya/output/PEcAn_99000000002/out/PDA_EDRTM/"
+settings$sensitivity.analysis$perpft <- TRUE
+settings$sensitivity.analysis$ensemble.id <- NULL
+
+PFT <- as.character(df_PFT$names)
+mapdf <- data.frame(pfts=df_PFT$names,col=df_PFT$Col)
+vars<- c('NIR','Spectrum','Vis','Red')
+
+VDP_allPFTs("PAR_liana",mapdf = mapdf)
+
+
+# get.results(settings)
+# run.sensitivity.analysis(settings,plot = TRUE)
 # 
+# load("/home/carya/output/PEcAn_99000000001/samples.Rdata")
+# load("/home/carya/output/PEcAn_99000000002/sensitivity.output.NOENSEMBLEID.Spectrum.2004.2004.Rdata")
+
+
+
+
+
 # samples$setup$names<-c("ssigma","soil.moisture",rep(dis2find_prim,npft))
 # summary(samples)
 # 

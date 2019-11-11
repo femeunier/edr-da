@@ -7,7 +7,10 @@ VDP_allPFTs <- function(variable,mapdf,parameter2remove = NULL){
   
   if (is.null(settings$sensitivity.analysis$ensemble.id)){
     settings$sensitivity.analysis$ensemble.id <- "NOENSEMBLEID"
-    settings$ensemble$ensemble.id <-"NOENSEMBLEID"
+    settings$ensemble <- NULL
+    # settings$ensemble$ensemble.id <-"NOENSEMBLEID"
+  } else {
+    settings$ensemble <- NULL
   }
   
   ensemble_id <- settings$sensitivity.analysis$ensemble.id
@@ -107,4 +110,6 @@ VDP_allPFTs <- function(variable,mapdf,parameter2remove = NULL){
   pdf(fname, width = 11, height = 8)
   do.call(grid.arrange, c(vd.plots, ncol = 4))
   dev.off()
+  
+  return(OP_all)
 }  

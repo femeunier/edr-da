@@ -108,9 +108,9 @@ PDA_prospect <- function(settings,Spectrum_leaf_data,df_PFT,wl.min,wl.max,use_me
                        lower = lower, upper = upper, best = best)
     
     # Read Leaf spectra 
-    temp <-Spectrum_leaf_data %>% filter(pft==current_pft & wavelength>wl.min & wavelength<wl.max) %>% select(c('wavelength','reflectance'))
+    temp <-Spectrum_leaf_data %>% filter(pft==current_pft & wavelength>wl.min & wavelength<wl.max) %>% select(c('wavelength','Reflectance'))
     
-    observation <- as.vector(temp$reflectance)
+    observation <- as.vector(temp$Reflectance)
     waves <- temp$wavelength
     
     likelihood <- create_likelihood(observation, waves)

@@ -297,11 +297,9 @@ data_spectra_select <- data_spectra %>% group_by(pfts,Lambda) %>% summarise(rmin
                                                                          alphamax = quantile(reflectance,1-alpha/2,na.rm = TRUE),
                                                                          median = median(reflectance,na.rm = TRUE))
 # Load leaf spectra data
-Spectrum_liana_data <- load_rds("~/data/RTM/Spectrum_liana_data.R")
+Spectrum_liana_data <- load_rds("~/data/RTM/Figure1_kalacska.rds")
 
-Spectrum_leaf_data <-
-  rbind(cbind(as.data.frame(Spectrum_liana_data[[1]]),pft=as.character(df_PFT$names[2])),
-        cbind(as.data.frame(Spectrum_liana_data[[2]]),pft=as.character(df_PFT$names[1])))
+Spectrum_leaf_data <- Spectrum_liana_data
 
 # Leaf spectra ensemble
 leaf_spectra <- ggplot(data_spectra_select,
@@ -314,7 +312,7 @@ leaf_spectra <- ggplot(data_spectra_select,
   xlab('Wavelength (nm)') + 
   ylab('Leaf reflectance (-)') +
   theme(panel.grid=element_blank())+
-  geom_line(data = Spectrum_leaf_data, aes(x = wavelength, y = reflectance,colour = as.factor(pft)),size=1)
+  geom_line(data = Spectrum_leaf_data, aes(x = wavelength, y = Reflectance,colour = as.factor(pft)),size=1)
 
 ggsave(filename = file.path(settings$outdir,"pfts","all","leaf_spectra_MA.png"),dpi = 300,
        plot = leaf_spectra,

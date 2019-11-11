@@ -57,3 +57,41 @@ cai_allometry <- function(dbh,nplant,b1Bl,b2Bl,sla,b1Ca,b2Ca) {
   dbh2ca <- pmin(loclai, Ca)
   pmin(1.0, nplant * dbh2ca)
 }
+
+#' COI from h5 file
+#'
+#' @export
+
+calc_COI <- function(h5file,PFTselect) {
+  
+  hfile <- hdf5r::H5File$new(h5file)
+  
+  dbh <- readDataSet(hfile[["DBH"]])
+  nplant <- readDataSet(hfile[["NPLANT"]])
+  Npatch <- readDataSet(hfile[["NPATCHES_GLOBAL"]])
+  hite <- readDataSet(hfile[["HITE"]])
+  lai <- readDataSet(hfile[["LAI_CO"]])
+  cai <- readDataSet(hfile[["CROWN_AREA_CO"]])
+  pft <- match(readDataSet(hfile[["PFT"]]),df_PFT$PFTnum) # Liana = 1, Tree = 2
+  PACO_N <- readDataSet(hfile[["PACO_N"]])
+  
+  hfile$close_all()
+  
+  COI <-rep(NA,Npatch)
+  
+  for (ipa in seq(1,Npatch)){
+    
+    pos <- (PAN == ipa)
+    
+    hiteconow   <- hite[pos]
+    dbhconow    <- dbh[pos]
+    pftconow    <- pft[pos]
+    laiconow    <- lai[pos]
+    nplantconow <- nplant[pos]
+    CAconow <- cai[pos]
+    
+    COI[ipa] <- ifelse(any(PFTselect %in% pftconow),1,0)
+  }
+
+  return(COI)
+}

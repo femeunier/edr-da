@@ -160,3 +160,79 @@ for (isite in seq(sites)){
   saveRDS(df,file = paste0("~/data/RTM/Figure6_sanchez2009_",sites[isite],".rds"))
 }
 
+###########################################################################################
+# All together
+# readRDS(file = "~/data/RTM/Figure6_castro.rds")
+
+rm(list=ls())
+
+alpha = 0.05
+
+All_leaf_spectra <-
+  rbind(readRDS(file = "~/data/RTM/Figure1_Guzman.rds") %>% mutate(ref = "Guzman"),
+      readRDS(file = "~/data/RTM/Figure1_kalacska.rds") %>% mutate(ref = "Kalacska"),
+      readRDS(file = "~/data/RTM/Figures4and5_castro_FTS.rds") %>% mutate(ref = "Castro_FTS"),
+      readRDS(file = "~/data/RTM/Figures4and5_castro_PNM.rds") %>% mutate(ref = "Castro_PNM"),
+      readRDS(file = "~/data/RTM/Figure6_sanchez2009_PNM.rds") %>% mutate(ref = "Sanchez_PNM"),
+      readRDS(file = "~/data/RTM/Figure6_sanchez2009_FTS.rds") %>% mutate(ref = "Sanchez_FTS"))
+
+ref_alls <- unique(All_leaf_spectra$ref)
+
+curves_all <- c()
+for (ref in (ref_alls)){
+  pos_ref <- which(All_leaf_spectra$ref == ref)
+  pfts <- as.character(unique(All_leaf_spectra[pos_ref,"pft"]))
+  for (pft in pfts){
+    
+    pos <- which(All_leaf_spectra$ref == ref &
+                   All_leaf_spectra$pft == pft)
+    compt <- 1
+  
+    curves <- rep(1,length(pos))
+    
+    for (i in seq(1,length(pos)-1)){
+      if (All_leaf_spectra$wavelength[pos[i]] > All_leaf_spectra$wavelength[pos[i+1]]){
+        compt = compt +1
+      }
+      curves[i] <- compt
+    }
+  
+    curves_all <- c(curves_all,curves)
+  }  
+}
+
+All_leaf_spectra$curve <- curves_all
+
+
+count <- All_leaf_spectra %>% group_by(ref) %>% summarise(curve_max = max(curve))
+
+# All_leaf_spectra_single <- All_leaf_spectra %>% filter(ref %in% (count %>% filter(curve_max ==1) %>% select(ref) %>%pull()))
+# All_leaf_spectra_multiple <- All_leaf_spectra %>% filter(ref %in% (count %>% filter(curve_max >1) %>% select(ref) %>%pull()))
+
+All_leaf_spectra <- All_leaf_spectra %>% group_by(ref,pft,wavelength) %>% summarise(Reflectance_min = min(Reflectance),
+                                                                         Reflectance_max = max(Reflectance),
+                                                                         Reflectance_median = median(Reflectance),
+                                                                         Reflectance_alphamin = quantile(Reflectance,alpha/2),
+                                                                         Reflectance_alphamax = quantile(Reflectance,1-alpha/2))
+
+
+ggplot(data=All_leaf_spectra,
+       aes(x = wavelength,
+           y = Reflectance_median,
+           ymin = Reflectance_min,
+           ymax = Reflectance_max,
+           fill = pft,
+           color = pft)) +
+  geom_ribbon(alpha = 0.5,linetype = 0) +
+  geom_line() +
+  facet_wrap(ref ~ .,scales = "free_x") +
+  scale_color_manual(values = c("#137300","#1E64C8")) +
+  scale_fill_manual(values = c("#137300","#1E64C8")) +
+  theme_bw()
+
+ggsave(filename = "~/data/RTM/All_leaf_spectra.png",
+       plot = last_plot(),
+       width = 20, height = 10,
+       dpi = 300,units = "cm")
+
+saveRDS(All_leaf_spectra,file= "~/data/RTM/All_leaf_spectra.rds")

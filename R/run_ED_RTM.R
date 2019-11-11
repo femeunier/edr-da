@@ -2,7 +2,7 @@
 #'
 #' @export
 
-run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
+run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl,temp = TRUE,outputdir = "/tmp/"){
   
  params_EDR <- params[-1]  
  
@@ -21,33 +21,31 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   pft_params <- matrix(params_EDR[-(1)], ncol = npft)
   
   # Calculate allometries
-  b1leaf_small <- pft_params[1,]
-  b2leaf_small <- pft_params[2,]
-  b1leaf_large <- pft_params[3,]
-  b2leaf_large <- pft_params[4,]
+  b1leaf <- pft_params[1,]
+  b2leaf <- pft_params[2,]
   
-  dbh_adult <- (b1leaf_large/b1leaf_small)^(1/(b2leaf_small-b2leaf_large))
+  # dbh_adult <- (b1leaf_large/b1leaf_small)^(1/(b2leaf_small-b2leaf_large))
   
-  sla <-  pft_params[5,]
+  sla <-  pft_params[3,]
   
-  orient_factor <- pft_params[6,]
-  clumping_factor <- pft_params[7,]
+  orient_factor <- pft_params[4,]
+  clumping_factor <- pft_params[5,]
   
   # Extract Prospect parameters
-  N <- pft_params[8,]
-  Cab <- pft_params[9,]
+  N <- pft_params[6,]
+  Cab <- pft_params[7,]
   
-  Car <- pft_params[10,]
-  Cw <- pft_params[11,]
-  Cm <- pft_params[12,]
+  Car <- pft_params[8,]
+  Cw <- pft_params[9,]
+  Cm <- pft_params[10,]
   
   if (crown_mod == 0){
     cai <- rep(1,Ncohort)
     b1Ca <- NULL
     b2Ca <- NULL
   } else {
-    b1Ca <- pft_params[13,]
-    b2Ca <- pft_params[14,]  
+    b1Ca <- pft_params[11,]
+    b2Ca <- pft_params[12,]  
   }
   
   soil_reflect <- hapke_soil(rep(soil_moisture,2101))
@@ -80,11 +78,11 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
       config_temp[[params2remove[iparam]]] <- NULL
     }
     
-    config_temp$b1Bl_large<-b1leaf_large[ipft]
-    config_temp$b2Bl_large<-b2leaf_large[ipft]
+    config_temp$b1Bl_large<-b1leaf[ipft]
+    config_temp$b2Bl_large<-b2leaf[ipft]
     
-    config_temp$b1Bl_small<-b1leaf_small[ipft]
-    config_temp$b2Bl_small<-b2leaf_small[ipft]
+    config_temp$b1Bl_small<-b1leaf[ipft]
+    config_temp$b2Bl_small<-b2leaf[ipft]
     
     # config_temp$dbh_adult <- ifelse(dbh_adult[ipft]>0,dbh_adult[ipft],0.)
     
@@ -113,8 +111,13 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   # create  temp directory to run
   # temp_dir <- outdir
-  temp_dir <- system2("mktemp",list("-d","-p",outdir),stdout=TRUE)
-  system2("mkdir",file.path(temp_dir,"patches"),stdout=NULL)
+  
+  if (temp){
+    temp_dir <- system2("mktemp",list("-d","-p",outdir),stdout=TRUE)
+    system2("mkdir",file.path(temp_dir,"patches"),stdout=NULL)
+  } else {
+    temp_dir <- outputdir
+  }
   
   ED2IN_in <- file.path(outdir,"ED2IN")
   ed2in_file <- file.path(temp_dir,"ED2IN")
@@ -185,7 +188,9 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl){
   
   
   # remove temporary
-  system2("rm",list("-rf",temp_dir),stdout=NULL)
+  if (temp){
+    system2("rm",list("-rf",temp_dir),stdout=NULL)
+  }
   # print(temp_dir)
   
   return(list(output_RTM = output_RTM,COI = COI))

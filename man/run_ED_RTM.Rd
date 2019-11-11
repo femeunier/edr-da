@@ -4,7 +4,8 @@
 \alias{run_ED_RTM}
 \title{Run ED RTM}
 \usage{
-run_ED_RTM(rundir, outdir, params, crown_mod, inventory)
+run_ED_RTM(rundir, outdir, params, crown_mod, inventory, par.wl, nir.wl,
+  temp = TRUE, outputdir = "/tmp/")
 }
 \description{
 Run ED RTM
