@@ -337,9 +337,9 @@ for (ipft in seq(npft)){
   
   current_pft <- as.character(df_PFT$names[ipft])
   
-  temp <-Spectrum_leaf_data %>% filter(pft==current_pft & wavelength>wl.min & wavelength<wl.max) %>% select(c('wavelength','reflectance'))
+  temp <-Spectrum_leaf_data %>% filter(pft==current_pft & wavelength>wl.min & wavelength<wl.max) %>% select(c('wavelength','Reflectance'))
   
-  observation <- as.vector(temp$reflectance)
+  observation <- as.vector(temp$Reflectance)
   waves <- temp$wavelength
    
   samples <- PDA_results[[current_pft]]
@@ -414,7 +414,7 @@ spectra_post <- ggplot(ensemble_posterior,
   xlab('Wavelength (nm)') + 
   ylab('Leaf reflectance (-)') +
   theme(panel.grid=element_blank()) + 
-  geom_point(data = Spectrum_leaf_data,aes(x = wavelength,y=reflectance,colour=as.factor(pft)))
+  geom_point(data = Spectrum_leaf_data,aes(x = wavelength,y=Reflectance,colour=as.factor(pft)))
 
 ggsave(filename = file.path(settings$outdir,"pfts","all","leaf_spectra_PDA.png"),dpi = 300,
        width = 10, height = 5, plot = spectra_post)

@@ -156,7 +156,7 @@ run_ED_RTM <- function(rundir,outdir,params,crown_mod,inventory,par.wl,nir.wl,te
   }
 
   if (crown_mod !=0){
-    cai <- cai_allometry(dbh,nplant,b1leaf_large[pft],b2leaf_large[pft],sla[pft],b1Ca[pft],b2Ca[pft])
+    cai <- cai_allometry(dbh,nplant,b1leaf[pft],b2leaf[pft],sla[pft],b1Ca[pft],b2Ca[pft])
   } else {
     cai <- 1+0*lai
   }
