@@ -97,16 +97,23 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   
   
   # Filters 
-  vis <- red <- rep(NA,length(par.wl))
+  vis <- red <- nir <- rep(NA,length(par.wl))
   
-  vis[par.wl>=380 & par.wl<= 740] <- 1
+  no <- rep(1,length(par.wl))
+  no_filter <- t(matrix(rep(no,Npatches),ncol = Npatches))
+  
+  vis[par.wl>=380 & par.wl<= 800] <- 1
   vis_filter <- t(matrix(rep(vis,Npatches),ncol = Npatches))
+  
+  nir[par.wl > 800] <- 1
+  nir_filter <- t(matrix(rep(nir,Npatches),ncol = Npatches))
   
   red[par.wl>=625 & par.wl<= 740] <- 1
   red_filter <- t(matrix(rep(red,Npatches),ncol = Npatches))
   
   out[['vis']] <- vis_filter*out[['PAR']]
   out[['red']] <- red_filter*out[['PAR']]
+  out[['nir']] <- nir_filter*out[['PAR']]
   out[['All']] <- EDR_outputs
   
   out[["PAR_leaf"]] <- PAR_prospect
@@ -123,12 +130,15 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
     COI <- 1
   }
   
-  COI_filter <- COI_filter_inverse <-t(matrix(rep(vis,Npatches),ncol = Npatches))
+  COI_filter <- COI_filter_inverse <-t(matrix(rep(no,Npatches),ncol = Npatches))
   COI_filter[COI <=0.5,] <- NA
   COI_filter_inverse[COI >0.5,] <- NA
   
-  out[['PAR_liana']] <- out[['PAR']]*COI_filter
-  out[['PAR_tree']] <- out[['PAR']]*COI_filter_inverse
+  out[['PAR_liana']] <- out[['vis']]*COI_filter
+  out[['PAR_tree']] <- out[['vis']]*COI_filter_inverse
+  
+  out[['nir_liana']] <- out[['nir']]*COI_filter
+  out[['nir_tree']] <- out[['nir']]*COI_filter_inverse
   
   # Create netcdf files
   nc_var <- list()
@@ -144,24 +154,39 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   nc_var[[4]] <- ncdf4::ncvar_def("Red", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
                                   longname = "Red ecosystem reflectance")
   
-  nc_var[[5]] <- ncdf4::ncvar_def("Spectrum", units = "-", dim = list(lon, lat, patch, WL_all), missval = -999, 
+  nc_var[[5]] <- ncdf4::ncvar_def("nir", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
+                                  longname = "nir ecosystem reflectance")
+  
+  nc_var[[6]] <- ncdf4::ncvar_def("Spectrum", units = "-", dim = list(lon, lat, patch, WL_all), missval = -999, 
                                   longname = "All ecosystem reflectance")
   
   # Leaf variables 
-  nc_var[[6]] <- ncdf4::ncvar_def("PAR_leaf", units = "-", dim = list(lon, lat, PFT, WL_par), missval = -999, 
+  nc_var[[7]] <- ncdf4::ncvar_def("PAR_leaf", units = "-", dim = list(lon, lat, PFT, WL_par), missval = -999, 
                                   longname = "Leaf PAR reflectance")
   
-  nc_var[[7]] <- ncdf4::ncvar_def("NIR_leaf", units = "-", dim = list(lon, lat, PFT, WL_nir), missval = -999, 
+  nc_var[[8]] <- ncdf4::ncvar_def("NIR_leaf", units = "-", dim = list(lon, lat, PFT, WL_nir), missval = -999, 
                                   longname = "Leaf NIR reflectance")
   
-  nc_var[[8]] <- ncdf4::ncvar_def("All_leaf", units = "-", dim = list(lon, lat, PFT, WL_all), missval = -999, 
+  nc_var[[9]] <- ncdf4::ncvar_def("All_leaf", units = "-", dim = list(lon, lat, PFT, WL_all), missval = -999, 
                                   longname = "All Leaf reflectance")
   
-  nc_var[[9]] <- ncdf4::ncvar_def("PAR_liana", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
+  nc_var[[10]] <- ncdf4::ncvar_def("PAR_liana", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
                                   longname = "PAR ecosystem reflectance")
   
-  nc_var[[10]] <- ncdf4::ncvar_def("PAR_tree", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
+  nc_var[[11]] <- ncdf4::ncvar_def("PAR_tree", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
                                   longname = "PAR ecosystem reflectance")
+  
+  nc_var[[12]] <- ncdf4::ncvar_def("nir_liana", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
+                                   longname = "nir ecosystem reflectance, liana patches")
+  
+  nc_var[[13]] <- ncdf4::ncvar_def("nir_tree", units = "-", dim = list(lon, lat, patch, WL_par), missval = -999, 
+                                   longname = "nir ecosystem reflectance, liana-free patches")
+  
+  # nc_var[[14]] <- ncdf4::ncvar_def("Spectrum_liana", units = "-", dim = list(lon, lat, patch, WL_all), missval = -999, 
+  #                                 longname = "All ecosystem reflectance")
+  # 
+  # nc_var[[15]] <- ncdf4::ncvar_def("Spectrum_tree", units = "-", dim = list(lon, lat, patch, WL_all), missval = -999, 
+  #                                 longname = "All ecosystem reflectance")
   
   nc <- ncdf4::nc_create(file.path(outdir, paste(start_year, "nc", sep = ".")), nc_var)
   

@@ -38,14 +38,14 @@ settings$modeloutdir <- modeloutdir
 settings$sensitivity.analysis$perpft <- TRUE
 settings$sensitivity.analysis$ensemble.id <- NULL
 
-Nensemble <- 500
+Nensemble <- 100
 
 alpha <- 0.05
 
 # SA analysis
 quantiles <- c(0.159,0.841)
 quantiles_all <- c(0.159,0.5,0.841) # Add median
-vars<- c("PAR_liana",'NIR','Spectrum','Vis','Red',"PAR")
+vars<- c("PAR_liana",'nir_liana','nir','Spectrum','Vis','Red',"PAR","PAR_tree","nir_tree")
 
 # PFT table
 df_PFT <- data.frame(PFTnum = as.numeric(unlist(lapply(lapply(settings$pfts, "[[","constants"),"[[","num"))),
@@ -71,10 +71,10 @@ h5file <- "/home/carya/output/PEcAn_99000000002/out/SA-median/RTM/history-S-2004
 npft <- length(df_PFT$names)
 
 if (crown_mod == 0){
- dis2find_prim <- c('b1Bl_small','b2Bl_small','b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','Nlayers',
+ dis2find_prim <- c('b1Bleaf','b2Bleaf','SLA','orient_factor','clumping_factor','Nlayers',
                      'Cab','carotenoids','Cw','Cm')
 } else {
-  dis2find_prim <- c('b1Bl_small','b2Bl_small','b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','Nlayers',
+  dis2find_prim <- c('b1Bl_large','b2Bl_large','SLA','orient_factor','clumping_factor','Nlayers',
                      'Cab','carotenoids','Cw','Cm','b1Ca','b2Ca')
 }
 dis.names <- c("ssigma","soil.moisture",rep(dis2find_prim,npft))
@@ -140,9 +140,9 @@ if(!dir.exists(modeloutdir)) dir.create(modeloutdir)
 ##########################################################################
 # Loop over papers
 
-best_sets <- c("~/data/RTM/current_samples_Kalacska.rds",
-               "~/data/RTM/current_samples_marvin.rds",
-               "~/data/RTM/current_samples_sanchez.rds")
+best_sets <- c("~/data/RTM/current_samples_Kalacska_b.rds",
+               "~/data/RTM/current_samples_Marvin.rds",
+               "~/data/RTM/current_samples_Sanchez.rds")
 
 # data.frames to save between loops
 model_ensemble_all <- parameter_dis <- model_sensitivities_all <- p.values_all <-
@@ -183,7 +183,7 @@ for (iref in seq(1,length(best_sets))){
     patch_class[["low"]] <- which(COI < 0.25)
     patch_class[["high"]] <- which(COI > 0.5)
     
-    if (any(sapply(patch_class,isempty))){
+    if (any(sapply(patch_class,isempty)) | all(is.na(output_RTM))){
       ll_all[iensemble] <- -1e20
       next
     }
@@ -490,7 +490,6 @@ ggsave(filename = file.path("~/data/RTM/","PDA_EDRTM_performance.png"),dpi = 300
 model_sensitivities_all <- model_sensitivities_all %>% mutate(variable.pft = paste(variable,pft,sep = "."))
 
 ready.to.plot <- model_sensitivities_all %>% filter(100*par.var >= 0.)
-ready.to.plot[5,"par.var"] <- 0.5
 ready.to.plot <- ready.to.plot %>%  group_by(OP_variable,ref) %>%
   top_n(5, abs(par.var)) %>% ungroup() %>% arrange(OP_variable,ref,(par.var)) %>%
   mutate(order = row_number())
@@ -526,18 +525,17 @@ p.values_all <- p.values_all %>% left_join(temp_max,by = "param") %>% mutate(sig
   p.values < 0.05 ~ '*',
   TRUE ~ 'N.S.')))
 
-marginal_plot <- ggplot(data = parameter_dis %>% filter(pft!= "soil"),
-       aes(x = value, y = ref, fill = pft)) +
-  geom_density_ridges(alpha= 0.5) +
+marginal_plot <- ggplot() +
+  geom_density(stat = "density",alpha = 0.5,data = parameter_dis %>% filter(pft!= "soil"),
+               mapping = aes(x = value, fill = as.factor(pft))) +
   scale_color_manual(values = c("#1E64C8","#137300")) +
   scale_fill_manual(values = c("#1E64C8","#137300")) +
-  geom_text(data = p.values_all,
-            aes(x = 1.1*value_max, y = ref, label = signif),color = 'black',
-            nudge_y = 0.5,
-            size = 2) + 
+  # geom_text(data = p.values_all,
+  #           aes(x = 1.1*value_max, y = ref, label = signif),color = 'black',
+  #           nudge_y = 0.5,
+  #           size = 2) + 
   labs(y="") +
-  theme_ridges(font_size = 13) +
-  facet_wrap(param ~ .,scales = "free_x") +
+  facet_wrap(param ~ .,scales = "free",nrow = 2) +
   theme_bw()
 
 ggsave(filename = file.path("~/data/RTM/","PDA_EDRTM_marginalD.png"),dpi = 300,

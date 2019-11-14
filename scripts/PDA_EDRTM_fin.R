@@ -56,7 +56,7 @@ observation <- Spectrum_canopy_data
 
 alpha_frac <- 0.8
 PFTselect <- 17
-crown_mod <- 1
+crown_mod <- 0
 
 h5file <- "/home/carya/output/PEcAn_99000000002/out/SA-median/RTM/history-S-2004-01-01-120000-g01.h5"
 

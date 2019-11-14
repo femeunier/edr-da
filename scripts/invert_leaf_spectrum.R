@@ -271,20 +271,30 @@ for (ifile in seq(files)){
     temp_ensemble_prospect <- matrix(NA,nrow(posteriorMat),nrow(best_run[[current_pft]]))
     colnames(temp_ensemble_prospect) <- seq(400,2500)
     
-    model_OP_ensemble <- c()
+    model_OP_ensemble_spectrum <- model_OP_ensemble_PAR <- model_OP_ensemble_NIR <- c()
     
     for (irun in seq(nrow(posteriorMat))){
       current_parameter_set <- c(posteriorMat[irun,'Nlayers'],posteriorMat[irun,'Cab'],posteriorMat[irun,'Car'],posteriorMat[irun,'Cw'],posteriorMat[irun,'Cm'])
       current_model_output <- PEcAnRTM::prospect(current_parameter_set, version = "5")
       temp_ensemble_prospect[irun,] <- current_model_output[,1]
       
-      model_OP_ensemble[irun] <- mean(interp1(x = 400:2500,
+      model_OP_ensemble_spectrum[irun] <- mean(interp1(x = 400:2500,
                                          y =  as.vector(current_model_output[,1]),
                                          xi = current_waves))
+      
+      model_OP_ensemble_PAR[irun] <- mean(interp1(x =  400:2500,
+                                                       y =  as.vector(current_model_output[,1]),
+                                                       xi = 400:800))
+      
+      model_OP_ensemble_NIR[irun] <- mean(interp1(x = 400:2500,
+                                                  y =  as.vector(current_model_output[,1]),
+                                                  xi = 801:2500))
     }
     
-    lmdf <- as.data.frame(cbind(posteriorMat,model_OP_ensemble))
-    anovobj<-aov(lm(as.formula(paste0("model_OP_ensemble"," ~ .^2")),data=lmdf))
+    lmdf <- as.data.frame(cbind(posteriorMat,model_OP_ensemble_spectrum,model_OP_ensemble_PAR,model_OP_ensemble_NIR))
+    
+    # Spectrum
+    anovobj<-aov(lm(as.formula(paste0("model_OP_ensemble_spectrum"," ~ .^2")),data=lmdf))
     allssq<-summary(anovobj)[[1]][,2]
     varn<-names((anovobj)$coefficients)[-1]
     vars <- varn[1:ncol(posteriorMat)]
@@ -301,7 +311,48 @@ for (ifile in seq(files)){
                                melt(sensivities) %>% rename(par.var = value) %>% 
                                  mutate(pft = current_pft,
                                         ref = Names[ifile],
-                                        param = names(sensivities)))
+                                        param = names(sensivities),
+                                        OP_variable = "Spectrum"))
+    
+    # PAR
+    anovobj<-aov(lm(as.formula(paste0("model_OP_ensemble_PAR"," ~ .^2")),data=lmdf))
+    allssq<-summary(anovobj)[[1]][,2]
+    varn<-names((anovobj)$coefficients)[-1]
+    vars <- varn[1:ncol(posteriorMat)]
+    
+    sensivities<-sapply(vars,function(nn){
+      
+      SSQ <- sum(allssq,na.rm = T)
+      SSQ_d <- sum(allssq[which(nn == varn)],na.rm = T)
+      SSQ_i <- sum(allssq[which(!(nn == varn) & grepl(nn, varn, fixed=T))],na.rm = T)
+      return((SSQ_d+(SSQ_i/2))/SSQ)},USE.NAMES = T) 
+    
+    sensitivities_all <- rbind(sensitivities_all,
+                               melt(sensivities) %>% rename(par.var = value) %>% 
+                                 mutate(pft = current_pft,
+                                        ref = Names[ifile],
+                                        param = names(sensivities),
+                                        OP_variable = "PAR"))
+    
+    # NIR
+    anovobj<-aov(lm(as.formula(paste0("model_OP_ensemble_NIR"," ~ .^2")),data=lmdf))
+    allssq<-summary(anovobj)[[1]][,2]
+    varn<-names((anovobj)$coefficients)[-1]
+    vars <- varn[1:ncol(posteriorMat)]
+    
+    sensivities<-sapply(vars,function(nn){
+      
+      SSQ <- sum(allssq,na.rm = T)
+      SSQ_d <- sum(allssq[which(nn == varn)],na.rm = T)
+      SSQ_i <- sum(allssq[which(!(nn == varn) & grepl(nn, varn, fixed=T))],na.rm = T)
+      return((SSQ_d+(SSQ_i/2))/SSQ)},USE.NAMES = T) 
+    
+    sensitivities_all <- rbind(sensitivities_all,
+                               melt(sensivities) %>% rename(par.var = value) %>% 
+                                 mutate(pft = current_pft,
+                                        ref = Names[ifile],
+                                        param = names(sensivities),
+                                        OP_variable = "NIR"))
     
     ensemble_posterior <- rbind(ensemble_posterior,
                                 as.data.frame(
