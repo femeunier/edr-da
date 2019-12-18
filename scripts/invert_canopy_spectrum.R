@@ -38,7 +38,8 @@ settings$modeloutdir <- modeloutdir
 settings$sensitivity.analysis$perpft <- TRUE
 settings$sensitivity.analysis$ensemble.id <- NULL
 
-Nensemble <- 100
+Nensemble <- 500
+crown_mod <- 0
 
 alpha <- 0.05
 
@@ -64,7 +65,6 @@ use_prior <- FALSE
 
 alpha_frac <- 0.8
 PFTselect <- 17
-crown_mod <- 0
 
 h5file <- "/home/carya/output/PEcAn_99000000002/out/SA-median/RTM/history-S-2004-01-01-120000-g01.h5"
 
@@ -140,9 +140,14 @@ if(!dir.exists(modeloutdir)) dir.create(modeloutdir)
 ##########################################################################
 # Loop over papers
 
+# best_sets <- c("~/data/RTM/current_samples_Kalacska_CM1_b.rds",
+#                "~/data/RTM/current_samples_Marvin_CM1_b.rds",
+#                "~/data/RTM/current_samples_Sanchez_CM1_b.rds")
+
 best_sets <- c("~/data/RTM/current_samples_Kalacska_b.rds",
                "~/data/RTM/current_samples_Marvin.rds",
                "~/data/RTM/current_samples_Sanchez.rds")
+
 
 # data.frames to save between loops
 model_ensemble_all <- parameter_dis <- model_sensitivities_all <- p.values_all <-
@@ -152,13 +157,14 @@ for (iref in seq(1,length(best_sets))){
   
   current_ref <- refs[iref]
   
-  Spectrum_canopy_data <- All_canopy_spectra %>% select(c(ref,scenario,wavelength,Reflectance_median)) %>%
+  Spectrum_canopy_data <- All_canopy_spectra %>% dplyr::select(c(ref,scenario,wavelength,Reflectance_median)) %>%
     rename(reflectance = Reflectance_median) %>% filter (ref == current_ref)
   
   observed <- observation <- Spectrum_canopy_data
   
   best_set <- readRDS(best_sets[iref])
   
+  # all_runs <- getSample(best_set,parametersOnly = FALSE)
   ensemble <- getSample(best_set,numSamples = Nensemble)
   ensemble <- rbind(MAP(best_set)$parametersMAP,ensemble)
   
@@ -220,13 +226,20 @@ for (iref in seq(1,length(best_sets))){
     ll_all[iensemble] <- sum(ll)
   }
   
-  ensemble_results_select <- ensemble_results %>% group_by(scenar,wavelength) %>% summarise(rmin = min(sim,na.rm = TRUE),
+  #################################################################################################################
+  # Filter the posterior runs
+  best_run <- which.max(ll_all)
+  runs <- seq(1,nrow(ensemble))
+  
+  print(length(runs[ll_all > (0.7)*ll_all[best_run] & !is.na(ll_all)]))
+  ensemble_results_filtered <- ensemble_results %>% filter(run %in% runs[ll_all > (0.7)*ll_all[best_run] & !is.na(ll_all)])
+  
+  ensemble_results_select <- ensemble_results_filtered %>% group_by(scenar,wavelength) %>% summarise(rmin = min(sim,na.rm = TRUE),
                                                                                             rmax = max(sim,na.rm = TRUE),
                                                                                             alphamin = quantile(sim,alpha/2,na.rm = TRUE),
                                                                                             alphamax = quantile(sim,1-alpha/2,na.rm = TRUE),
                                                                                             median = median(sim,na.rm = TRUE))
-  best_run <- which.max(ll_all)
-  ensemble_results_select[["rbest"]] <- ensemble_results %>% filter(run == best_run) %>% pull(sim)
+  ensemble_results_select[["rbest"]] <- ensemble_results_filtered %>% filter(run == best_run) %>% pull(sim)
   
   model_ensemble_all <- rbind(model_ensemble_all,
                               ensemble_results_select %>% ungroup() %>% mutate(ref = current_ref))
@@ -397,12 +410,12 @@ for (iref in seq(1,length(best_sets))){
   # Merge dataframes
   
   param_dis_current <-
-    melt(ensemble) %>% select(c(Var2,value)) %>% rename(name = Var2) %>% 
+    melt(ensemble) %>% dplyr::select(c(Var2,value)) %>% rename(name = Var2) %>% 
       mutate(param = sub("\\^.*", "", name),
              pft = sub(".*\\^","",name),
              ref = current_ref) %>% mutate(pft = case_when(
                pft == "" ~ "soil",
-               TRUE ~ pft)) %>% select(-c(name))
+               TRUE ~ pft)) %>% dplyr::select(-c(name))
   
   parameter_dis <- rbind(parameter_dis,param_dis_current)
   
@@ -411,12 +424,12 @@ for (iref in seq(1,length(best_sets))){
   colnames(ensemble_small) <- paste(dis.names,PFT_all,sep='^')
   
   param_dis_current_small <-
-    melt(ensemble_small) %>% select(c(Var2,value)) %>% rename(name = Var2) %>% 
+    melt(ensemble_small) %>% dplyr::select(c(Var2,value)) %>% rename(name = Var2) %>% 
     mutate(param = sub("\\^.*", "", name),
            pft = sub(".*\\^","",name),
            ref = current_ref) %>% mutate(pft = case_when(
              pft == "" ~ "soil",
-             TRUE ~ pft)) %>% select(-c(name)) %>% filter(pft != 'soil')
+             TRUE ~ pft)) %>% dplyr::select(-c(name)) %>% filter(pft != 'soil')
   
   params2compare <- unique(param_dis_current_small$param) 
   Nparams2compare <- length(params2compare)
@@ -438,6 +451,9 @@ for (iref in seq(1,length(best_sets))){
                                    ref = current_ref))
 }
 
+######################################################################
+
+# save.image(file = "~/data/RTM/Inverse_canopy_spectrum_CM1.Rdata")
 save.image(file = "~/data/RTM/Inverse_canopy_spectrum.Rdata")
 
 ######################################################################

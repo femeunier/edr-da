@@ -26,7 +26,7 @@ data <- data.frame(LMA = c(117.23,	155.18,103.87,120.04,90.21,104.35),
                    GF = c('Liana','Tree','Liana','Tree','Liana','Tree'))
 
 # units (LMA (g/m2), Ca (mg/g), Cb (mg/g), Car (mg/g), Water (%)) --> paper
-# EWT = (FM - DM)/(rho*A) = theta/(1-theta)*(SLA/rho)
+# EWT = (FM - DM)/(rho*A) = theta/(1-theta)*(1/SLA/rho)
 # units prospect (Cab (µg/cm2), Car (µg/cm2), Cw (cm), Cm (g/cm2)))
 
 Ca <- Cb <- Car <- Cw <- Cm <- Cab <- 

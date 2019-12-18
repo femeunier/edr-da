@@ -74,6 +74,7 @@ calc_COI <- function(h5file,PFTselect) {
   cai <- readDataSet(hfile[["CROWN_AREA_CO"]])
   pft <- match(readDataSet(hfile[["PFT"]]),df_PFT$PFTnum) # Liana = 1, Tree = 2
   PACO_N <- readDataSet(hfile[["PACO_N"]])
+  PAN <- rep(1:Npatch,PACO_N)
   
   hfile$close_all()
   
@@ -94,4 +95,61 @@ calc_COI <- function(h5file,PFTselect) {
   }
 
   return(COI)
+}
+
+
+#' Liana indexes from h5 file
+#'
+#' @export
+
+calc_liana_index <- function(h5file,PFTselect,alpha_frac=0.8) {
+  
+  hfile <- hdf5r::H5File$new(h5file)
+  
+  dbh <- readDataSet(hfile[["DBH"]])
+  nplant <- readDataSet(hfile[["NPLANT"]])
+  Npatch <- readDataSet(hfile[["NPATCHES_GLOBAL"]])
+  hite <- readDataSet(hfile[["HITE"]])
+  lai <- readDataSet(hfile[["LAI_CO"]])
+  cai <- readDataSet(hfile[["CROWN_AREA_CO"]])
+  pft <- match(readDataSet(hfile[["PFT"]]),df_PFT$PFTnum) # Liana = 1, Tree = 2
+  PACO_N <- readDataSet(hfile[["PACO_N"]])
+  PAN <- rep(1:Npatch,PACO_N)
+  
+  hfile$close_all()
+  
+  is.liana <- COI  <- COI2 <- fraction_LAI <- LAI_total_pa <- rep(NA,Npatch)
+  
+  for (ipa in seq(1,Npatch)){
+    
+    pos <- (PAN == ipa)
+    
+    hiteconow   <- hite[pos]
+    dbhconow    <- dbh[pos]
+    pftconow    <- pft[pos]
+    laiconow    <- lai[pos]
+    nplantconow <- nplant[pos]
+    CAconow <- cai[pos]
+    Nco <- length(hiteconow)
+    
+    is.liana[ipa] <- ifelse(any(PFTselect %in% pftconow),1,0)
+    
+    ##########################################################################
+    
+    fraction_LAI[ipa] <- sum(laiconow[pftconow %in% PFTselect])/sum(laiconow)
+    
+    # Compute COI
+    LAItot <- sum(laiconow)
+    LAI_total_pa[ipa] <- LAItot
+    LAI_alpha <- (1-alpha_frac)*LAItot
+    h_alpha <- interp1(x = as.vector(cumsum(laiconow)), 
+                       y = as.vector(hiteconow), 
+                       xi = ifelse(LAI_alpha<laiconow[1],laiconow[1],LAI_alpha))
+    
+    COI[ipa] <- sum(laiconow[pftconow %in% PFTselect & hiteconow >= h_alpha])/sum(laiconow[hiteconow >= h_alpha])
+    COI2[ipa] <- sum(CAconow[pftconow %in% PFTselect & hiteconow >= h_alpha])/sum(CAconow[hiteconow >= h_alpha])
+    
+  }
+  
+  return(list(COI = COI, is.liana = is.liana, COI2 = COI2, fraction_LAI = fraction_LAI,LAItot = LAI_total_pa))
 }

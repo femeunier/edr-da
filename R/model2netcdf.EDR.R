@@ -122,7 +122,7 @@ model2netcdf.EDR <- function(outdir,sitelat,sitelon,start_date,par.wl = 400:2499
   
   # COI filter
   
-  h5file <- tail(list.files(path=outdir,pattern='*.h5',full.names = TRUE),1)
+  h5file <- tail(dir(outdir, "-S-",full.names = TRUE) ,1)
   
   if (patches){
     COI <- calc_COI(h5file,PFTselect)

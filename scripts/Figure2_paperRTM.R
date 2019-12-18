@@ -6,11 +6,11 @@ library(pracma)
 library(Hmisc)
 library(cowplot)
 
-load(file = "~/data/RTM/Inverse_leaf_spectrum.Rdata")
+load(file = "~/data/RTM/Inverse_leaf_spectrum2.Rdata")
 All_leaf_spectra <- readRDS(file= "~/data/RTM/All_leaf_spectra.rds") %>% mutate(wavelength = as.integer(round(wavelength)))
 
 # Subplot a 
-Select = "Castro_PNM"           #  "Guzman"      "Kalacska"    "Sanchez_PNM" "Sanchez_FTS" "Castro_PNM"  "Castro_FTS" 
+Select = "Castro_PNM"           #  "Guzman"      "Kalacska"    "Sanchez_PNM" "Sanchez_FTS" ""  "Castro_FTS" "Castro_PNM"
 
 subplota <-  ensemble_posterior_all %>% ungroup %>% filter(ref == Select) %>% mutate(pft = case_when(
   pft == "Liana_optical" ~ "Liana",
@@ -72,6 +72,22 @@ ready.for.plot_filt <- ready.for.plot %>% mutate(group_wd = round(wavelength*2/1
       ref ==  "Guzman" ~  "Guzman",
       ref ==  "Kalacska" ~  "Kalacska"))
 
+
+model.ind.fit <- ready.for.plot %>% group_by(ref,pft) %>% summarise(slope = coef(lm(formula = posterior_median ~ Reflectance_median))[2],
+                                                   r2 = summary(lm(formula = posterior_median ~ Reflectance_median))$adj.r.squared,
+                                                   SSE = c(crossprod(lm(formula = posterior_median ~ Reflectance_median)$residuals))/length(lm(formula = posterior_median ~ Reflectance_median)$residuals)) %>%
+  mutate(RMSE = sqrt(SSE))
+             
+model.ind.fit_VIS <- ready.for.plot %>% filter(wavelength < 800) %>%group_by(ref,pft) %>% summarise(slope = coef(lm(formula = posterior_median ~ Reflectance_median))[2],
+                                                                    r2 = summary(lm(formula = posterior_median ~ Reflectance_median))$adj.r.squared,
+                                                                    SSE = c(crossprod(lm(formula = posterior_median ~ Reflectance_median)$residuals))/length(lm(formula = posterior_median ~ Reflectance_median)$residuals)) %>%
+  mutate(RMSE = sqrt(SSE))
+
+model.ind.fit_NIR <- ready.for.plot %>% filter(wavelength > 800) %>%group_by(ref,pft) %>% summarise(slope = coef(lm(formula = posterior_median ~ Reflectance_median))[2],
+                                                                                                    r2 = summary(lm(formula = posterior_median ~ Reflectance_median))$adj.r.squared,
+                                                                                                    SSE = c(crossprod(lm(formula = posterior_median ~ Reflectance_median)$residuals))/length(lm(formula = posterior_median ~ Reflectance_median)$residuals)) %>%
+  mutate(RMSE = sqrt(SSE))      
+
 subplotB <-
   ggplot(ready.for.plot_filt,aes(x=Reflectance_median,y=posterior_median,
                                  colour = as.factor(pft),
@@ -100,9 +116,17 @@ subplotB <-
 # Subplot C
 
 load(file = "~/data/RTM/Inverse_canopy_spectrum.Rdata")
-All_canopy_spectra <- readRDS(file= "~/data/RTM/All_canopy_spectra.rds")
+# load(file = "~/data/RTM/Inverse_canopy_spectrum_CM1.Rdata")
+# load(file = "~/data/RTM/Inverse_canopy_spectrum_kalackaonly.Rdata")
 
-Select = "Kalacska"  # "Kalacska" "Marvin"   "Sanchez" 
+All_canopy_spectra <- readRDS(file= "~/data/RTM/All_canopy_spectra.rds")
+All_canopy_spectra <- All_canopy_spectra %>% group_by(ref,scenario,wavelength) %>% summarise(Reflectance_min = min(reflectance),
+                                                                                             Reflectance_max = max(reflectance),
+                                                                                             Reflectance_median = median(reflectance),
+                                                                                             Reflectance_alphamin = min(reflectance),
+                                                                                             Reflectance_alphamax = max(reflectance)) %>% ungroup()
+
+Select = "Marvin"  # "Kalacska" "Marvin"   "Sanchez" 
 
 subplotc <- model_ensemble_all %>% filter(ref == Select) %>% ungroup() %>% mutate(scenar = case_when(
   scenar == "low" ~'Low',
@@ -110,7 +134,7 @@ subplotc <- model_ensemble_all %>% filter(ref == Select) %>% ungroup() %>% mutat
 
 data_subplotc <- All_canopy_spectra %>% filter(ref == Select) %>% ungroup() %>% mutate(scenario = case_when(
   scenario == "low" ~'Low',
-  scenario == "high" ~'High'))
+  scenario == "high" ~'High')) 
 
 
 scenarios <- unique(data_subplotc$scenario)
@@ -119,7 +143,6 @@ for (scenario in scenarios){
   
   for (iwl in seq(1,length(wavelengths)-1)){
     if ((wavelengths[iwl + 1]-wavelengths[iwl]) > 100){
-      print('here')
       subplotc <- rbind(subplotc,
                         data.frame(scenar = scenario,
                                    wavelength = c(wavelengths[iwl] + 1,wavelengths[iwl + 1] -1),
@@ -137,7 +160,6 @@ for (scenario in scenarios){
   
   for (iwl in seq(1,length(wavelengths)-1)){
     if ((wavelengths[iwl + 1]-wavelengths[iwl]) > 100){
-      print('here')
       data_subplotc <- rbind(data_subplotc,
                              data.frame(scenario = scenario,
                                         wavelength = c(wavelengths[iwl] + 1,wavelengths[iwl + 1] -1),
@@ -156,16 +178,19 @@ subplotC <-
   ggplot() +
   geom_ribbon(data = subplotc,
               aes(x = wavelength,
-                  ymin = alphamin,
-                  ymax = alphamax,
+                  ymin = rbest - (median-alphamin),
+                  ymax = rbest +  (alphamax-median),
+                  # ymin = alphamin,
+                  # ymax = alphamax,
                   fill = scenar,
                   color = scenar),alpha = 0.5,size = 0.5,linetype=0) +
+  geom_line(data = subplotc,
+            aes(x = wavelength,
+                y = rbest,
+                color = scenar),linetype = 1) +
   geom_line(data = data_subplotc,
             aes(x = wavelength,
                 y = Reflectance_median,
-                ymin = Reflectance_min,
-                ymax = Reflectance_max,
-                fill = scenario,
                 color = scenario),linetype = 2) + 
   scale_color_manual(values = c("#1E64C8","#137300")) +
   scale_fill_manual(values = c("#1E64C8","#137300")) +
@@ -185,7 +210,11 @@ subplotC <-
 ###############################################################################################
 # Subplot d
 
-model.results <- model_ensemble_all %>% dplyr::select(scenar,wavelength,median,alphamin,alphamax,ref) %>% rename(scenario = scenar)
+model.results <- model_ensemble_all %>% dplyr::select(scenar,wavelength,median,alphamin,alphamax,ref,rbest) %>% rename(scenario = scenar)
+model.results <- model.results %>% mutate(alphamin = rbest - (median - alphamin),
+                                          alphamax = rbest + (alphamax - median),
+                                          median = rbest) 
+
 raw_data <- All_canopy_spectra %>% dplyr::select(ref,wavelength,scenario,Reflectance_median,Reflectance_alphamin,Reflectance_alphamax)
 
 data_Marvin_sd <- read.csv(file = "~/data/RTM/marvin_sd.csv",header = TRUE)
@@ -211,6 +240,25 @@ subplot.d <- data %>% left_join(model.results,by=c("ref","scenario","wavelength"
   group_by(ref,group_wd) %>% sample_n(1) %>% mutate(scenario = case_when(
     scenario == "low" ~ "Low",
     scenario == "high" ~ "High"))
+
+
+SSB <- data %>% left_join(model.results,by=c("ref","scenario","wavelength")) 
+
+model.ind.fit <- SSB %>% group_by(ref,scenario) %>% summarise(slope = coef(lm(formula =  rbest ~ Reflectance_median))[2],
+                                                              m = mean(Reflectance_median),
+                                                                    r2 = summary(lm(formula =  rbest ~ Reflectance_median))$adj.r.squared,
+                                                                    SSE = c(crossprod(lm(formula =  rbest ~ Reflectance_median)$residuals))/length(lm(formula = rbest ~ Reflectance_median)$residuals)) %>%
+  mutate(RMSE = sqrt(SSE))
+
+model.ind.fit_VIS <- SSB %>% filter(wavelength < 800) %>%group_by(ref,scenario) %>% summarise(slope = coef(lm(formula =  rbest ~ Reflectance_median))[2],
+                                                                                                    r2 = summary(lm(formula =  rbest ~ Reflectance_median))$adj.r.squared,
+                                                                                                    SSE = c(crossprod(lm(formula =  rbest ~ Reflectance_median)$residuals))/length(lm(formula = rbest ~ Reflectance_median)$residuals)) %>%
+  mutate(RMSE = sqrt(SSE))
+
+model.ind.fit_NIR <- SSB %>% filter(wavelength > 800) %>%group_by(ref,scenario) %>% summarise(slope = coef(lm(formula = rbest ~ Reflectance_median))[2],
+                                                                                                    r2 = summary(lm(formula = rbest ~ Reflectance_median))$adj.r.squared,
+                                                                                                    SSE = c(crossprod(lm(formula = rbest ~ Reflectance_median)$residuals))/length(lm(formula = rbest ~ Reflectance_median)$residuals)) %>%
+  mutate(RMSE = sqrt(SSE))      
 
 
 subplotD <-
@@ -246,5 +294,5 @@ ggsave(plot = last_plot(),
        width = 30,
        height = 15,
        units = "cm",
-       file = "~/data/RTM//Figure2.png")
+       file = "~/data/RTM/Figure2.png")
 

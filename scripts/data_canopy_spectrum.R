@@ -1,5 +1,8 @@
 rm(list=ls())
 
+library(dplyr)
+library(purrr)
+
 data2read <- "~/data/RTM/data/Figure3_marvin.csv"# rm(list=ls())
 
 data <- read.csv(data2read)
@@ -121,6 +124,8 @@ All_canopy_spectrum <- do.call("rbind",map2(files,Names,function(file,name){
 #             Reflectance_alphamin = quantile(reflectance,alpha/2),
 #             Reflectance_alphamax = quantile(reflectance,1-alpha/2))
 
+All_canopy_spectrum <- All_canopy_spectrum %>% filter(! (ref == 'Marvin' & wavelength > 1350 & wavelength < 1520))
+
 ggplot(data=All_canopy_spectrum,
        aes(x = wavelength,
            y = reflectance,
@@ -139,4 +144,70 @@ ggsave(filename = "~/data/RTM/All_canopy_spectra.png",
        dpi = 300,units = "cm")
 
 saveRDS(All_canopy_spectrum,file= "~/data/RTM/All_canopy_spectra.rds")
+
+############################################################################
+# Data table
+
+bands_m <- c(550,600,400,800,1500,2000,680)
+bands_M <- c(600,800,700,1400,1800,2500,700)
+band_names <- c('green','Red edge','visible','NIR','SWIR','SWIR2','Rededge2')
+studies <- unique(All_canopy_spectrum$ref)
+
+differences <- matrix(NA,length(studies),length(band_names))
+rownames(differences) <- studies
+colnames(differences) <- band_names
+
+for (istudy in seq(studies)){
+  for (iband in seq(band_names)){
+    
+    Lianas_temp <- All_canopy_spectrum %>% filter(ref == studies[istudy] & scenario == "high" & wavelength >= bands_m[iband] &  wavelength <= bands_M[iband]) %>% ungroup() %>% dplyr::select(wavelength,reflectance)
+    
+    if (nrow(Lianas_temp)>0){
+      Lianas <- rbind(c(bands_m[iband],Lianas_temp[1,2]),
+                      Lianas_temp,
+                      c(bands_M[iband],Lianas_temp[nrow(Lianas_temp),2]))
+      L_wl <- Lianas[,1]
+      L_R <- Lianas[,2]
+      Liana_interp <- interp1(L_wl,L_R,bands_m[iband]:bands_M[iband])
+      
+      Trees_temp <- All_canopy_spectrum %>% filter(ref == studies[istudy] & scenario == "low" & wavelength >= bands_m[iband] &  wavelength <= bands_M[iband]) %>% ungroup() %>% dplyr::select(wavelength,reflectance)
+      Trees <- rbind(c(bands_m[iband],Trees_temp[1,2]),
+                     Trees_temp,
+                     c(bands_M[iband],Trees_temp[nrow(Trees_temp),2]))
+      T_wl <- Trees[,1]
+      T_R <- Trees[,2]
+      Trees_interp <- interp1(T_wl,T_R,bands_m[iband]:bands_M[iband])
+      
+      if (band_names[iband] == "Red edge"){
+        if (nrow(Lianas_temp)>0 & nrow(Trees_temp)>0 
+            # & min(max(L_wl[2:(length(L_wl)-1)]),max(T_wl[2:(length(T_wl)-1)])) - bands_M[iband] > -100 &
+            # max(min(L_wl[2:(length(L_wl)-1)]),min(T_wl[2:(length(T_wl)-1)])) - bands_m[iband] < 100
+        ){
+          red_edge_L <- mean(Liana_interp[(length(Liana_interp)-10):length(Liana_interp)]) - mean(Liana_interp[1:10])
+          red_edge_T <- mean(Trees_interp[(length(Trees_interp)-10):length(Trees_interp)]) - mean(Trees_interp[1:10])
+          
+          if (mean(red_edge_T)>mean(red_edge_L)){
+            differences[istudy,iband] <- "T"
+          } else{
+            differences[istudy,iband] <- "L"      
+          }
+        } 
+        
+      } else {
+        if (nrow(Lianas_temp)>0 & nrow(Trees_temp)>0 
+            # & min(max(L_wl[2:(length(L_wl)-1)]),max(T_wl[2:(length(T_wl)-1)])) - bands_M[iband] > -100 &
+            # max(min(L_wl[2:(length(L_wl)-1)]),min(T_wl[2:(length(T_wl)-1)])) - bands_m[iband] < 100
+        ){
+          if (mean(Trees_interp)>mean(Liana_interp)){
+            differences[istudy,iband] <- "T"
+          } else{
+            differences[istudy,iband] <- "L"      
+          }
+        } 
+      }
+    }
+  }
+}
+
+# sanchez green = L, red edge = L, NIR = L, SWIR = L
 

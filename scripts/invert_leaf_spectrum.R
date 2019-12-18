@@ -5,6 +5,7 @@ library(BayesianTools)
 library(dplyr)
 library(redr)
 library(PEcAn.all)
+
 library(pracma)
 library(reshape2)
 library(ggplot2)
@@ -14,19 +15,22 @@ library(ggridges)
 
 All_leaf_spectra <- readRDS(file= "~/data/RTM/All_leaf_spectra.rds")
 
-iter  <- 25000
+iter <- 100000
 nrChains  <- 2
 wl.max <- 2500
 wl.min  <- 350
 alpha  <- 0.05
 
-Nrun_prospect <- 1000
+Nrun_prospect <- 2000
 
 files <- c("Figure1_Guzman.rds","Figure1_kalacska.rds",
            "Figure6_sanchez2009_PNM.rds","Figure6_sanchez2009_FTS.rds",
            "Figures4and5_castro_PNM.rds","Figures4and5_castro_FTS.rds")
 Names <- c("Guzman","Kalacska",
            "Sanchez_PNM","Sanchez_FTS","Castro_PNM","Castro_FTS")
+
+# files <- c("Figure6_sanchez2009_PNM.rds","Figure6_sanchez2009_FTS.rds")
+# Names <- c("Sanchez_PNM","Sanchez_FTS")
 
 Colors <- c("#137300","#1E64C8")
 
@@ -100,7 +104,7 @@ for (ifile in seq(files)){
   Prospect_param_names <- c("Ca","Cb","Car","Cw","Cm","Nlayers","ssigma")
   Prospect_param_names_short <- c("Cab","Car","Cw","Cm","Nlayers","ssigma")
   pft_lowers <- c(chlorophyll_a = 0,chlorophyll_b = 0, carotenoids = 0,Cw = 0, SLA = 1, Nlayers = 1, ssigma = 0)
-  pft_uppers <-  c(chlorophyll_a = 100,chlorophyll_b = 50, carotenoids = 50,Cw = 0.1, SLA = 100, Nlayers = 5, ssigma = 1)
+  pft_uppers <-  c(chlorophyll_a = 100,chlorophyll_b = 50, carotenoids = 50,Cw = 0.1, SLA = 100, Nlayers = 5., ssigma = 1)
   
   dis2find <- c('chlorophyll_a','chlorophyll_b','carotenoids','Cw','SLA','Nlayers',"ssigma")
   
@@ -240,12 +244,11 @@ for (ifile in seq(files)){
     
     prospect_performance <- rbind(prospect_performance,current_model)
     
-    
     temp_data <- All_leaf_spectra %>% filter(ref == Names[ifile]) %>% ungroup()
     temp_data_pft <- temp_data %>% filter(pft == current_pft)
-    current_waves <- temp_data_pft %>% select(wavelength) %>% pull()
+    current_waves <- temp_data_pft %>% dplyr::select(wavelength) %>% pull()
       
-    posteriorMat <- getSample(samples, numSamples = Nrun_prospect,
+    posteriorMat <- getSample(samples, numSamples = Nrun_prospect*2,
                               parametersOnly = TRUE)
     
     colnames(posteriorMat) <- Prospect_param_names_short
@@ -380,8 +383,8 @@ for (ifile in seq(files)){
   
   ensemble_posterior_all <- rbind(ensemble_posterior_all,
                                   ensemble_posterior %>% mutate(ref = Names[ifile]) %>%
-                                    filter(wavelength >= min(temp_data %>% select(wavelength) %>% pull()) & 
-                                             wavelength <= max(temp_data %>% select(wavelength) %>% pull())))
+                                    filter(wavelength >= min(temp_data %>% dplyr::select(wavelength) %>% pull()) & 
+                                             wavelength <= max(temp_data %>% dplyr::select(wavelength) %>% pull())))
   
   ensemble_posterior_all2 <- rbind(ensemble_posterior_all,
                                   ensemble_posterior %>% mutate(ref = Names[ifile]))
@@ -563,4 +566,4 @@ ggsave(filename = file.path("~/data/RTM/","sensitivity_plot.png"),dpi = 300,
        plot = sensitivity_plot,
        width = 10, height = 5)
 
-save.image(file = "~/data/RTM/Inverse_leaf_spectrum.Rdata")
+save.image(file = "~/data/RTM/Inverse_leaf_spectrum2.Rdata")

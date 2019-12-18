@@ -5,7 +5,7 @@
 \title{Write PEcAn standard output files}
 \usage{
 model2netcdf.EDR(outdir, sitelat, sitelon, start_date, par.wl = 400:2499,
-  nir.wl = 2500, patches = FALSE)
+  nir.wl = 2500, patches = FALSE, PFTselect = 1)
 }
 \description{
 Write PEcAn standard output files
