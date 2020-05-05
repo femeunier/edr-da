@@ -13,6 +13,7 @@ run-ed/template/ed_2.1
 .scratch.R
 *.sh.o*
 *.sh.po*
+data/PDA_all_leaf.RDS
 
 # ED outputs
 ed-outputs
