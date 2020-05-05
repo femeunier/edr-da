@@ -2,12 +2,11 @@
 devtools::load_all(".")
 
 # library(devtools)
-# install_github("ashiklom/pecan", subdir = "modules/rtm",force = TRUE)
+# install_github("ashiklom/pecan", subdir = "modules/rtm",force = TRUE,dependencies = FALSE)
 # install_github("PecanProject/pecan", subdir = "models/ed",force = TRUE,dependencies = FALSE)
-# devtools::install_github("ashiklom/rrtm")
+# devtools::install_github("ashiklom/rrtm",dependencies = FALSE)
 
 library(PEcAnRTM)
-library(PEcAn.ED2)
 library(rrtm)
 library(dplyr)
 library(ggplot2)
@@ -83,7 +82,7 @@ run_ED_RTM <- function(params_model){
     Cw <- pft_params[9, ]
     Cm <- pft_params[10, ]
     orient_factor <- pft_params[11, ]
-    # clumping_factor <- pft_params[12, ]
+    clumping_factor <- pft_params[12, ]
     
     # Call RTM
     result <- tryCatch(

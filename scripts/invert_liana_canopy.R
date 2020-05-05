@@ -2,8 +2,8 @@ rm(list = ls())
 
 devtools::load_all(".")
 
+library(redr)
 library(PEcAnRTM)
-library(PEcAn.ED2)
 library(rrtm)
 library(dplyr)
 library(ggplot2)
@@ -20,6 +20,7 @@ load_local <- function(file) {
 outdir <- "~/Documents/R/edr-da/data/"
 srcdir <- "/home/femeunier/Documents/data/gigante"
 Niter <- 25000
+select = "Marvin" # Marvin Foster Kalacska Sanchez
 
 use_leaf_PDA <- TRUE
 use_meta.analysis <- TRUE
@@ -171,7 +172,7 @@ create_likelihood <- function(observed, patches) {
 #######################################################################################
 # Observations
 observation <- readRDS("./data/All_canopy_spectra.rds") %>% filter(wavelength > 400, wavelength < 2500)
-select = "Kalacska"
+
 observed <-
   observation %>% filter(ref == select) %>% ungroup() %>% rename(type = scenario) %>% mutate(type = case_when(type == "low" ~ "Removal",
                                                                                                           type == "high" ~ "Control")) %>% dplyr::select(type, reflectance,wavelength) %>%
@@ -297,11 +298,11 @@ settings_MCMC <- BayesianTools::applySettingsDefault(settings = NULL, sampler = 
 settings_MCMC$iterations=Niter
 
 # Run inversion
-setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = TRUE)
+setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = FALSE)
 samples <- BayesianTools::runMCMC(setup,settings = settings_MCMC)
 samples <- BayesianTools::runMCMC(samples,settings = settings_MCMC)
 
-# saveRDS(samples, file.path(getwd(),"outputs","Sanchez_edr.rds"))
+saveRDS(samples, file.path(getwd(),"outputs","Marvin_edr.rds"))
 
 # BayesianTools::gelmanDiagnostics(samples)
 # summary(samples)
