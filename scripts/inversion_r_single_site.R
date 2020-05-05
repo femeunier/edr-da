@@ -14,7 +14,7 @@ aviris_data <- readRDS("aviris/aviris.rds")
 aviris_all_wl <- round(PEcAnRTM::wavelengths(aviris_data))
 aviris_use_wl_p <- aviris_all_wl >= 400 & aviris_all_wl <= 1300
 aviris_use_wl <- aviris_all_wl[aviris_use_wl_p]
-observation <- aviris_data[aviris_use_wl_p, colnames(aviris_data) == site_code]
+observation <- aviris_data[waviris_use_wl_p, colnames(aviris_data) == site_code]
 which_wl <- aviris_use_wl - 399
 
 # Read site file

@@ -66,6 +66,13 @@ sw_two_stream <- function(czen,
     all(down_sky + down0_sky == 1)
   )
 
+  if (is.null(dim(leaf_reflect))){
+    leaf_reflect <- as.matrix(leaf_reflect)
+    leaf_trans <- as.matrix(leaf_trans)
+    wood_reflect <- as.matrix(wood_reflect)
+    wood_trans <- as.matrix(wood_trans)
+  }
+  
   ##########
   # Unpack PFT-specific parameters across cohorts for easier vectorization
   leaf_reflect <- leaf_reflect[, pft]

@@ -17,3 +17,5 @@ multi_site_pda_results
 other_site_data
 priors/
 scripts
+^.*\.Rproj$
+^\.Rproj\.user$
