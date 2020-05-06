@@ -20,14 +20,18 @@ load_local <- function(file) {
 #####################################################################################################
 outdir <- "~/Documents/R/edr-da/data/"
 srcdir <- "/home/femeunier/Documents/data/gigante"
-Niter <- 25000
-select = "Marvin" # Marvin Foster Kalacska Sanchez
+Niter <- 2500
+nrChains <-  1
+ncore <- 2
+
+select = "Sanchez" # Marvin Foster Kalacska Sanchez
 
 use_leaf_PDA <- TRUE
 use_meta.analysis <- TRUE
 use_prior <- TRUE
 
 #####################################################################################################
+cl <- parallel::makeCluster(ncore)
 
 df_PFT <- data.frame(names = c("Tree_optical","Liana_optical"),
                      nums = c(1,2),
@@ -69,7 +73,7 @@ for (isite in seq_along(site.file)){
   is_liana <- is_liana[temp$ix]
   
   patch <- data.frame(dbh = dbh, h = h, pft = pft, nplant = nplant, patch = patch, type = names[isite],is_liana = is_liana)
-  patch_simple <- merge_cohorts(patch)
+  patch_simple <- merge_cohorts(patch,dbh_diff = 5)
   patch.order <- patch_simple[seq(dim(patch_simple)[1],1),]
   census <- rbind(census,
                   patch.order)
@@ -106,7 +110,7 @@ run_ED_RTM <- function(params_model,patch,waves){
   # Calculate allometries
   b1leaf <- pft_params[1, pft]
   b2leaf <- pft_params[2, pft]
-  sla <- pft_params[3, pft]
+  sla <- 1/(10*pft_params[7, pft])
   bleaf <- size2bl(dbh, b1leaf, b2leaf)
   lai <- nplant * bleaf * sla
   
@@ -114,13 +118,13 @@ run_ED_RTM <- function(params_model,patch,waves){
   cai <- rep(1, ncohort)
   
   # Extract remaining parameters
-  N <- pft_params[4, ]
-  Cab <- pft_params[5, ]
-  Car <- pft_params[6, ]
-  Cw <- pft_params[7, ]
-  Cm <- pft_params[8, ]
-  orient_factor <- pft_params[9, ]
-  clumping_factor <- pft_params[10, ]
+  N <- pft_params[3, ]
+  Cab <- pft_params[4, ]
+  Car <- pft_params[5, ]
+  Cw <- pft_params[6, ]
+  Cm <- pft_params[7, ]
+  orient_factor <- pft_params[8, ]
+  clumping_factor <- pft_params[9, ]
   
   # Call RTM
   result <- tryCatch(
@@ -176,7 +180,7 @@ observation <- readRDS("./data/All_canopy_spectra.rds") %>% filter(wavelength > 
 
 observed <-
   observation %>% filter(ref == select) %>% ungroup() %>% rename(type = scenario) %>% mutate(type = case_when(type == "low" ~ "Removal",
-                                                                                                          type == "high" ~ "Control")) %>% dplyr::select(type, reflectance,wavelength) %>%
+                                                                                                              type == "high" ~ "Control")) %>% dplyr::select(type, reflectance,wavelength) %>%
   rename(waves = wavelength)
 
 #######################################################################################
@@ -185,15 +189,15 @@ prospect_PDA_file <- file.path(outdir,"PDA_all_leaf.RDS")
 if (file.exists(prospect_PDA_file) & use_leaf_PDA) {PDA_results <- readRDS(prospect_PDA_file)} else {PDA_results <- NULL}
 
 # Import Posterior/Optimized distributions
-dis2find <- c('b1Bl_large','b2Bl_large','SLA','Nlayers',
+dis2find <- c('b1Bl_large','b2Bl_large','Nlayers',
               'Cab','Car','Cw','Cm','orient_factor','clumping_factor')
-dis2find_prim <- c('b1Bl','b2Bl','SLA','Nlayers',
+dis2find_prim <- c('b1Bl','b2Bl','Nlayers',
                    'Cab','Car','Cw','Cm','orient_factor','clumping_factor')
 
-pft_lowers <- c(b1Bl_large = 0.001, b2Bl_large = 1 , SLA = 1, orient_factor = -0.5,
+pft_lowers <- c(b1Bl_large = 0.001, b2Bl_large = 1 , orient_factor = -0.5,
                 clumping_factor = 0.4, b1Ca = 0.1, b2Ca = 0.5, Nlayers = 1,
                 Cab = 0, Car = 0,Cw = 0,Cm = 0.)
-pft_uppers <- c(b1Bl_large = 0.08, b2Bl_large = 2.5, SLA = 100, orient_factor = 0.5,
+pft_uppers <- c(b1Bl_large = 0.08, b2Bl_large = 2.5, orient_factor = 0.5,
                 clumping_factor = 0.9, b1Ca = 2, b2Ca = 3, Nlayers = 5,
                 Ca = 150, Car = 50,Cw = 0.1,Cm = 0.1)
 
@@ -277,7 +281,7 @@ sampler_all <- cbind(ssigma_sampling,soil_moisture_sampling,direct_sky_frac_samp
                      sampler_all)
 
 prior <- BayesianTools::createPriorDensity(sampler_all, method = "multivariate", eps = 1e-10,
-                            lower = lower_all, upper = upper_all, best = best_all)
+                                           lower = lower_all, upper = upper_all, best = best_all)
 
 ###################################################################################
 patches <- census
@@ -289,17 +293,20 @@ likelihood <- create_likelihood(observed = observed,patches = census)
 # We test first
 params <- (upper_all+lower_all)/2
 time0 <- Sys.time()
-test <- likelihood(params = lower_all)
+test <- likelihood(params = params)
 Sys.time() - time0
 
 print(test)
 
 # Settings
+setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = ncore)
+
 settings_MCMC <- BayesianTools::applySettingsDefault(settings = NULL, sampler = "DEzs", check = FALSE)
 settings_MCMC$iterations=Niter
+settings_MCMC$nrChains=nrChains
+settings_MCMC$startValue = setup$prior$sampler(ncore)
 
 # Run inversion
-setup <- BayesianTools::createBayesianSetup(likelihood, prior, parallel = FALSE)
 samples <- BayesianTools::runMCMC(setup,settings = settings_MCMC)
 samples <- BayesianTools::runMCMC(samples,settings = settings_MCMC)
 

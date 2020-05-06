@@ -20,9 +20,9 @@ load_local <- function(file) {
   as.list(menv)
 }
 
-Niter <- 2000
-nrChains <- 1
-ncore <- 4
+Niter <- 25000
+nrChains <-  1
+ncore <- 2
 srcdir <- "/home/femeunier/Documents/data/BCI"
 outdir <- "./outputs/"
 plot.figure <- TRUE
@@ -48,23 +48,22 @@ ncohort <- length(dbh)
 # True set of parameters
 ref_parameters <- c("ssigma" = 1e-6,
                     "soil_moisture"= 0.5,
-                     "direct_sky_frac" = 0.5,
-                     "czen" = 0.5,
-                     "b1leaf"=0.1,
-                     "b2leaf"=1.6,
-                     "sla"=12,
-                     "N"=2,
-                     "Cab"=50,
-                     "Car"=20,
-                     "Cw"=0.01,
-                     "Cm"=0.01,
-                     "orient_factor"= 0.1,
-                     "clumping_factor"=0.7)
+                    "direct_sky_frac" = 0.5,
+                    "czen" = 0.5,
+                    "b1leaf"=0.1,
+                    "b2leaf"=1.6,
+                    "N"=2,
+                    "Cab"=50,
+                    "Car"=20,
+                    "Cw"=0.01,
+                    "Cm"=0.01,
+                    "orient_factor"= 0.1,
+                    "clumping_factor"=0.7)
 
 Nparameters <- length(ref_parameters) 
 # params2retrieve <- round(runif(n = Nparameters))
 params2retrieve <- c(1,0,0,0,
-                     0,0,1,0,0,0,0,0,1,1)
+                     0,0,0,0,0,0,0,1,1)
 params2retrieve[c(3,4)] <- 0
 params2retrieve[c(1)] <- 1
 Nparams2retrieve <- sum(params2retrieve)
@@ -73,10 +72,10 @@ Nparams2retrieve <- sum(params2retrieve)
 
 # All uniformed initially
 pft_lowers <- rep(c(
-  b1leaf = 0, b2leaf = -5, sla = 0, N = 1, Cab = 0, Car = 0, Cw = 0, Cm = 0,
+  b1leaf = 0, b2leaf = -5, N = 1, Cab = 0, Car = 0, Cw = 0, Cm = 0,
   orient_factor = -0.5, clumping_factor = 0.4), npft)
 pft_uppers <- rep(c(
-  b1leaf = 3, b2leaf = 5, sla = 100,N = 5, Cab = 100, Car = 40, Cw = 0.1, Cm = 0.1,
+  b1leaf = 3, b2leaf = 5,N = 5, Cab = 100, Car = 40, Cw = 0.1, Cm = 0.1,
   orient_factor = 0.5, clumping_factor = 1), npft)
 lowers <- c(
   "ssigma" = 0, "soil_moisture" = 0, "direct_sky_frac" = 0, "czen" = 0,
@@ -110,8 +109,9 @@ for (iparam in seq(1,Nparameters)){
   best[iparam]  <- median(sampler[,iparam])
 }
 
-prior <- BayesianTools::createPriorDensity(sampler, method = "multivariate", eps = 1e-10,
-                                           lower = lower, upper = upper, best = best)
+params2retrieve_pos <- which(params2retrieve==1)
+prior <- BayesianTools::createPriorDensity(sampler[,params2retrieve_pos], method = "multivariate", eps = 1e-10,
+                                           lower = lower[params2retrieve_pos], upper = upper[params2retrieve_pos], best = best[params2retrieve_pos])
 
 ########################################################################################
 run_ED_RTM <- function(params_model,waves){
@@ -134,7 +134,7 @@ run_ED_RTM <- function(params_model,waves){
   # Calculate allometries
   b1leaf <- pft_params[1, pft]
   b2leaf <- pft_params[2, pft]
-  sla <- pft_params[3, pft]
+  sla <- 1/(10*pft_params[7,pft])
   bleaf <- size2bl(dbh, b1leaf, b2leaf)
   lai <- nplant * bleaf * sla
   
@@ -142,13 +142,13 @@ run_ED_RTM <- function(params_model,waves){
   cai <- rep(1, ncohort)
   
   # Extract remaining parameters
-  N <- pft_params[4, ]
-  Cab <- pft_params[5, ]
-  Car <- pft_params[6, ]
-  Cw <- pft_params[7, ]
-  Cm <- pft_params[8, ]
-  orient_factor <- pft_params[9, ]
-  clumping_factor <- pft_params[10, ]
+  N <- pft_params[3, ]
+  Cab <- pft_params[4, ]
+  Car <- pft_params[5, ]
+  Cw <- pft_params[6, ]
+  Cm <- pft_params[7, ]
+  orient_factor <- pft_params[8, ]
+  clumping_factor <- pft_params[9, ]
   
   # Call RTM
   result <- tryCatch(
@@ -177,8 +177,10 @@ create_likelihood <- function(observed, waves, pft, dbh, nplant) {
   )
   function(params){
     
-    ssigma <- params[1]
-    params_model <- params[-c(1)]
+    params_all <- ref_parameters
+    params_all[params2retrieve_pos] <- params  
+    ssigma <- params_all[1]
+    params_model <- params_all[-c(1)]
     albedo <- run_ED_RTM(params_model,waves)
     
     if (is.null(albedo)) return(-1e20)
@@ -205,10 +207,9 @@ likelihood <- create_likelihood(observation, waves, pft, dbh, nplant)
 # We test first
 params <- (uppers+lowers)/2
 time0 <- Sys.time()
-test <- likelihood(params)
-test2 <- likelihood(ref_parameters)
+test <- likelihood(params[params2retrieve_pos])
+test2 <- likelihood(ref_parameters[params2retrieve_pos])
 Sys.time() - time0
-
 print(c(test,test2))
 
 # Run inversion
@@ -230,10 +231,12 @@ samples <- BayesianTools::runMCMC(samples,settings = settings_MCMC)
 Posteriors <- BayesianTools::getSample(samples,coda=FALSE,numSamples=2500)
 
 best_params <- BayesianTools::MAP(samples)$parametersMAP
-names(best_params) <- names(ref_parameters)
+names(best_params) <- names(ref_parameters[params2retrieve_pos])
 
 waves_best = seq(400,2500,10)
-best_params_model <- best_params[-c(1)]
+best_params_all <- ref_parameters
+best_params_all[params2retrieve_pos] <- best_params
+best_params_model <- best_params_all[-1]
 albedo <- run_ED_RTM(best_params_model,waves_best)
 
 data.opt <- rbind(as.data.frame(cbind(waves = waves_best,albedo)) %>% mutate(type = "best run"),
@@ -241,19 +244,19 @@ data.opt <- rbind(as.data.frame(cbind(waves = waves_best,albedo)) %>% mutate(typ
 
 albedo_all <- run_ED_RTM(best_params_model,waves)
 data.opt_all <- rbind(as.data.frame(cbind(waves = waves,albedo = albedo_all)) %>% mutate(type = "best run"),
-                  as.data.frame(cbind(waves,as.vector(observation))) %>% rename(albedo = V2) %>% mutate(type = "obs"))
+                      as.data.frame(cbind(waves,as.vector(observation))) %>% rename(albedo = V2) %>% mutate(type = "obs"))
 
-params2plot <- c('b1leaf','b2leaf','sla','N','Cab',"Car","Cw","Cm","orient_factor","clumping_factor")
+params2plot <- names(ref_parameters[params2retrieve_pos])[-1]
 
-Priors <- sampler
-colnames(Priors) <- colnames(Posteriors) <- names(ref_parameters)
+Priors <- sampler[,params2retrieve_pos]
+colnames(Priors) <- colnames(Posteriors) <- names(ref_parameters[params2retrieve_pos])
 
 df_ref <- data.frame(name = (params2plot), value = as.matrix(ref_parameters[names(ref_parameters) %in% params2plot])) %>% mutate(type = "reference")
 df_bestrun <- data.frame(name = (params2plot), value = as.matrix(best_params[names(best_params) %in% params2plot])) %>% mutate(type = "best_set")
 
 all.distributions <-
   rbind(as.data.frame(Priors) %>% dplyr::select(params2plot) %>% pivot_longer(cols = params2plot) %>% mutate(type = 'prior'),
-      as.data.frame(Posteriors) %>% dplyr::select(params2plot) %>% pivot_longer(cols = params2plot) %>% mutate(type = 'posterior'))
+        as.data.frame(Posteriors) %>% dplyr::select(params2plot) %>% pivot_longer(cols = params2plot) %>% mutate(type = 'posterior'))
 
 all.OP <- rbind(all.distributions,
                 df_ref,df_bestrun)
@@ -299,8 +302,8 @@ if(plot.figure){
   
   ggplot() +
     geom_density_ridges(data = all.distributions,aes(x = value, y = 0, fill = type),alpha= 0.5) +
-    geom_point(data = df_ref,aes(x = value,y = 0),color = 'black',size = 2,shape = 8) +
     geom_vline(data = df_bestrun,aes(xintercept = value),color = 'black',size = 1.5,linetype=2) +
+    geom_point(data = df_ref,aes(x = value,y = 0),color = 'black',size = 2,shape = 8) +
     facet_wrap(~ name,scales = "free") +
     scale_y_continuous(expand = c(0.01,0)) +
     theme_bw()
