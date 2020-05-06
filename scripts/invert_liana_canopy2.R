@@ -310,7 +310,7 @@ settings_MCMC$startValue = setup$prior$sampler(ncore)
 samples <- BayesianTools::runMCMC(setup,settings = settings_MCMC)
 samples <- BayesianTools::runMCMC(samples,settings = settings_MCMC)
 
-saveRDS(samples, file.path(getwd(),"outputs","Marvin_edr.rds"))
+saveRDS(samples, file.path(getwd(),"outputs",paste0(select,"_edr.rds")))
 
 # BayesianTools::gelmanDiagnostics(samples)
 # summary(samples)
